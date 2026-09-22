@@ -1,0 +1,128 @@
+<Window x:Class="LinkVault.Config.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:LinkVault.Config"
+        Title="LinkVault Settings"
+        Width="980" Height="600" MinWidth="780" MinHeight="420"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True">
+    <Window.Resources>
+        <Style x:Key="SmallButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="56"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="6,1"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <WrapPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Popup hotkey:" VerticalAlignment="Center"/>
+            <local:HotkeyBox x:Name="PopupHotkeyBox" Width="200" Margin="8,0,24,0" VerticalContentAlignment="Center"/>
+            <CheckBox x:Name="StartupBox" Content="Start with Windows" VerticalAlignment="Center" Margin="0,0,24,0"/>
+            <Button Content="Refresh icons" Style="{StaticResource SmallButton}" Click="RefreshIcons_Click"
+                    ToolTip="Download the favicon of every website again"/>
+        </WrapPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Groups -->
+            <GroupBox Grid.Column="0" Header="Groups" Padding="6" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ListBox x:Name="GroupList" Grid.Row="0" DisplayMemberPath="Name" SelectionChanged="GroupList_SelectionChanged"/>
+                    <WrapPanel Grid.Row="1" Margin="0,6,0,0">
+                        <Button Content="Add" Style="{StaticResource SmallButton}" Click="AddGroup_Click"/>
+                        <Button Content="Remove" Style="{StaticResource SmallButton}" Click="RemoveGroup_Click"/>
+                        <Button Content="▲" ToolTip="Move up" Style="{StaticResource SmallButton}" MinWidth="28" Click="GroupUp_Click"/>
+                        <Button Content="▼" ToolTip="Move down" Style="{StaticResource SmallButton}" MinWidth="28" Click="GroupDown_Click"/>
+                    </WrapPanel>
+                    <StackPanel Grid.Row="2" x:Name="GroupEditor" IsEnabled="False" Margin="0,10,0,0">
+                        <TextBlock Text="Name:" Margin="0,0,0,2"/>
+                        <TextBox x:Name="GroupNameBox" TextChanged="GroupName_TextChanged"/>
+                        <CheckBox x:Name="ShowInlineBox" Margin="0,8,0,0" Click="ShowInline_Click"
+                                  Content="Show links in the popup"
+                                  ToolTip="Checked: every link of the group is listed in the popup. Unchecked: the popup shows only the group name, which opens a submenu with its links."/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Links of the selected group -->
+            <GroupBox Grid.Column="1" x:Name="LinksBox" Header="Links" Padding="6" Margin="0,0,8,0" IsEnabled="False">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ListBox x:Name="LinkList" Grid.Row="0" DisplayMemberPath="Label" SelectionChanged="LinkList_SelectionChanged"/>
+                    <WrapPanel Grid.Row="1" Margin="0,6,0,0">
+                        <Button Content="Add" Style="{StaticResource SmallButton}" Click="AddLink_Click"/>
+                        <Button Content="Remove" Style="{StaticResource SmallButton}" Click="RemoveLink_Click"/>
+                        <Button Content="▲" ToolTip="Move up" Style="{StaticResource SmallButton}" MinWidth="28" Click="LinkUp_Click"/>
+                        <Button Content="▼" ToolTip="Move down" Style="{StaticResource SmallButton}" MinWidth="28" Click="LinkDown_Click"/>
+                    </WrapPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- Link editor -->
+            <GroupBox Grid.Column="2" Header="Link" Padding="6">
+                <Grid x:Name="LinkEditor" IsEnabled="False">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="LinkNameBox" Margin="0,0,0,6" TextChanged="LinkName_TextChanged"
+                             ToolTip="Optional. Shown in the popup instead of the URL."/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="URL:" VerticalAlignment="Top" Margin="0,3,8,6"/>
+                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="LinkUrlBox" Margin="0,0,0,2" FontFamily="Consolas"
+                             TextWrapping="Wrap" MinHeight="44" TextChanged="LinkUrl_TextChanged"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="UrlInfo" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Hotkey:" VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <local:HotkeyBox Grid.Row="3" Grid.Column="1" x:Name="LinkHotkeyBox" Margin="0,0,0,6" VerticalContentAlignment="Center"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Group:" VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <ComboBox Grid.Row="4" Grid.Column="1" x:Name="LinkGroupBox" Margin="0,0,0,6" DisplayMemberPath="Name"
+                              SelectionChanged="LinkGroup_SelectionChanged"/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0">
+                        Parameters: write <Run FontFamily="Consolas">{name}</Run> or <Run FontFamily="Consolas">{name=default}</Run> in the URL,
+                        e.g. <Run FontFamily="Consolas">https://www.google.com/search?q={query}</Run>.
+                        Their values are asked for when the link is opened. Use <Run FontFamily="Consolas">{{</Run> and
+                        <Run FontFamily="Consolas">}}</Run> for literal braces.
+                    </TextBlock>
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="OK" Width="80" IsDefault="True" Click="Ok_Click"/>
+            <Button Content="Cancel" Width="80" Margin="8,0,0,0" IsCancel="True" Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
