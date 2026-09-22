@@ -49,6 +49,8 @@ public partial class PopupWindow : Window
     /// <summary>The mouse moved onto a selectable row, which is now selected.</summary>
     internal event Action<Row>? RowHovered;
 
+    internal int SelectedIndex => List.SelectedIndex;
+
     internal Row? SelectedRow => List.SelectedIndex >= 0 && List.SelectedIndex < _rows.Count ? _rows[List.SelectedIndex] : null;
 
     /// <summary>Replaces the rows. A negative index leaves nothing selected.</summary>

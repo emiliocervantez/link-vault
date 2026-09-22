@@ -16,7 +16,6 @@ namespace LinkVault.Popup;
 /// </summary>
 internal sealed class LinkPopup
 {
-    private const int PageStep = 8;
     private const double IconSize = 16;
     private const double LabelMaxWidth = 600;
 
@@ -27,6 +26,8 @@ internal sealed class LinkPopup
     private readonly PopupWindow _sub;
     private readonly PopupInputHooks _hooks;
     private Group? _openGroup;
+    /// <summary>Each shown Group with the main-window index of its first selectable row, in order.</summary>
+    private readonly List<(Group Group, int Row)> _groupStarts = new();
 
     public LinkPopup(Func<Settings> settings, FaviconCache icons, Action<Link> onLinkChosen)
     {
@@ -102,6 +103,7 @@ internal sealed class LinkPopup
     private List<Row> MainRows()
     {
         var rows = new List<Row>();
+        _groupStarts.Clear();
         var previousInline = false;
         foreach (var group in _settings().Groups.Where(g => g.Links.Count > 0))
         {
@@ -109,11 +111,13 @@ internal sealed class LinkPopup
             if (rows.Count > 0 && (group.ShowInline || previousInline)) rows.Add(Separator());
             if (group.ShowInline)
             {
-                rows.Add(Header(group.Name));
+                rows.Add(Header(group));
+                _groupStarts.Add((group, rows.Count));
                 rows.AddRange(group.Links.Select(LinkRow));
             }
             else
             {
+                _groupStarts.Add((group, rows.Count));
                 rows.Add(GroupRow(group));
             }
             previousInline = group.ShowInline;
@@ -131,13 +135,32 @@ internal sealed class LinkPopup
         IsSeparator = true,
     };
 
-    private static Row Header(string name) => new()
+    private static Row Header(Group group)
     {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         // Black, not the gray of other non-selectable rows: it looks the same as a Collapsed Group's name.
-        Content = new TextBlock { Text = name, Foreground = Brushes.Black, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = LabelMaxWidth + IconSize },
-        Selectable = false,
-        FontWeight = FontWeights.Bold,
-    };
+        grid.Children.Add(new TextBlock { Text = group.Name, Foreground = Brushes.Black, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = LabelMaxWidth + IconSize });
+        AddKeyHint(grid, group.PopupKey, column: 1);
+        return new Row { Content = grid, Selectable = false, FontWeight = FontWeights.Bold };
+    }
+
+    /// <summary>Shows a Popup Key in gray, right-aligned in the given column.</summary>
+    private static void AddKeyHint(Grid grid, int? key, int column)
+    {
+        if (key is not { } vk) return;
+        var text = new TextBlock
+        {
+            Text = KeyNames.Name(vk),
+            Foreground = Brushes.Gray,
+            FontWeight = FontWeights.Normal,
+            Margin = new Thickness(24, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(text, column);
+        grid.Children.Add(text);
+    }
 
     private Row LinkRow(Link link)
     {
@@ -164,18 +187,7 @@ internal sealed class LinkPopup
         };
         Grid.SetColumn(label, 1);
         grid.Children.Add(label);
-        if (link.PopupKey is { } key)
-        {
-            var keyText = new TextBlock
-            {
-                Text = KeyNames.Name(key),
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(24, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Grid.SetColumn(keyText, 2);
-            grid.Children.Add(keyText);
-        }
+        AddKeyHint(grid, link.PopupKey, column: 2);
         return new Row { Content = grid, Tag = link, ToolTip = link.Url };
     }
 
@@ -184,15 +196,16 @@ internal sealed class LinkPopup
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(new TextBlock
         {
-            Text = group.Name,
-            Margin = new Thickness(0, 0, 24, 0),   // aligned and styled like an Inline Group header
+            Text = group.Name,   // aligned and styled like an Inline Group header
             MaxWidth = LabelMaxWidth,
             TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        var arrow = new TextBlock { Text = "▸" };
-        Grid.SetColumn(arrow, 1);
+        AddKeyHint(grid, group.PopupKey, column: 1);
+        var arrow = new TextBlock { Text = "▸", Margin = new Thickness(24, 0, 0, 0) };
+        Grid.SetColumn(arrow, 2);
         grid.Children.Add(arrow);
         return new Row { Content = grid, Tag = group, FontWeight = FontWeights.Bold };
     }
@@ -228,10 +241,12 @@ internal sealed class LinkPopup
             case 0x27:                                                    // Right
                 if (!inSub && _main.SelectedRow?.Tag is Group g) OpenSub(g, selectFirst: true);
                 return;
+            case 0x26 when ShiftHeld(): JumpGroup(forward: false); return; // Shift+Up
             case 0x26: active.MoveSelection(-1); return;                  // Up
+            case 0x28 when ShiftHeld(): JumpGroup(forward: true); return;  // Shift+Down
             case 0x28: active.MoveSelection(+1); return;                  // Down
-            case 0x21: active.MoveSelection(-PageStep); return;           // PageUp
-            case 0x22: active.MoveSelection(+PageStep); return;           // PageDown
+            case 0x21: JumpGroup(forward: false); return;                // PageUp, like Shift+Up
+            case 0x22: JumpGroup(forward: true); return;                 // PageDown, like Shift+Down
             case 0x24: active.SelectFirst(); return;                      // Home
             case 0x23: active.SelectLast(); return;                       // End
             case 0x0D: case 0x20:                                         // Enter, Space
@@ -242,12 +257,43 @@ internal sealed class LinkPopup
         if (IsPopupHotkey(vk)) { Close(); return; }
 
         // Popup Keys work from anywhere in the Popup, including for Links of Collapsed Groups.
-        if (!ModifierHeld() && _settings().AllLinks.FirstOrDefault(l => l.PopupKey == vk) is { } link)
+        if (ModifierHeld()) return;
+        if (_groupStarts.FirstOrDefault(s => s.Group.PopupKey == vk) is { Group: not null } start)
+        {
+            SelectGroup(start.Group, start.Row);
+        }
+        else if (_settings().AllLinks.FirstOrDefault(l => l.PopupKey == vk) is { } link)
         {
             Close();
             _onLinkChosen(link);
         }
         // every other key is swallowed by the hook and ignored here, like a menu would
+    }
+
+    /// <summary>Selects the Group's first row: an Inline Group's first Link, or a Collapsed Group's name with its submenu opened.</summary>
+    private void SelectGroup(Group group, int row)
+    {
+        if (_openGroup != group) CloseSub();
+        _main.Select(row);
+        if (!group.ShowInline) OpenSub(group, selectFirst: true);
+    }
+
+    private static bool ShiftHeld() => (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+
+    /// <summary>
+    /// Selects the first row of the next (or previous) Group in the main window, wrapping, closing any submenu.
+    /// That row is an Inline Group's first Link or a Collapsed Group's name. Inside a Group, "previous" is its own start.
+    /// </summary>
+    private void JumpGroup(bool forward)
+    {
+        if (_groupStarts.Count == 0) return;
+        CloseSub();
+        var current = _main.SelectedIndex;
+        var starts = _groupStarts.Select(s => s.Row).ToList();
+        var target = forward
+            ? starts.FirstOrDefault(i => i > current, starts[0])
+            : starts.LastOrDefault(i => i < current, starts[^1]);
+        _main.Select(target);
     }
 
     /// <summary>Ctrl, Alt or Win held: Popup Keys are bare keys (Shift is ignored).</summary>

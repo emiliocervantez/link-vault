@@ -35,11 +35,14 @@ public sealed class Group
     /// <summary>True: the Group's Links are listed in the Popup itself. False: the Popup shows a submenu entry.</summary>
     public bool ShowInline { get; set; } = true;
     public List<Link> Links { get; set; } = new();
+    /// <summary>Virtual-key code of a single key that moves to this Group while the Popup is open. Shares the Popup Key space with Links.</summary>
+    public int? PopupKey { get; set; }
 
     public Group Clone() => new()
     {
         Name = Name,
         ShowInline = ShowInline,
+        PopupKey = PopupKey,
         Links = Links.Select(l => l.Clone()).ToList(),
     };
 }
@@ -71,11 +74,21 @@ public sealed class Settings
             return "The popup hotkey must be set.";
 
         var seen = new HashSet<Hotkey> { PopupHotkey };
-        var seenKeys = new HashSet<int>();
+        var seenKeys = new HashSet<int>();   // Popup Keys of Links and Groups together
+        string? CheckPopupKey(int? key, string owner)
+        {
+            if (key is not { } vk) return null;
+            if (Link.IsReservedPopupKey(vk))
+                return $"{owner}: {KeyNames.Name(vk)} is used for navigation in the popup and cannot be a popup key.";
+            return seenKeys.Add(vk) ? null : $"Popup key {KeyNames.Name(vk)} is assigned more than once.";
+        }
+
         foreach (var g in Groups)
         {
             if (string.IsNullOrWhiteSpace(g.Name))
                 return "Every group needs a name.";
+            if (CheckPopupKey(g.PopupKey, $"Group \"{g.Name}\"") is { } groupProblem)
+                return groupProblem;
             foreach (var l in g.Links)
             {
                 if (string.IsNullOrWhiteSpace(l.Url))
@@ -84,13 +97,8 @@ public sealed class Settings
                     return $"Link \"{l.Label}\" in group \"{g.Name}\": {error}";
                 if (l.Hotkey is { IsEmpty: false } hk && !seen.Add(hk))
                     return $"Hotkey {hk} is assigned more than once.";
-                if (l.PopupKey is { } key)
-                {
-                    if (Link.IsReservedPopupKey(key))
-                        return $"Link \"{l.Label}\": {KeyNames.Name(key)} is used for navigation in the popup and cannot be a popup key.";
-                    if (!seenKeys.Add(key))
-                        return $"Popup key {KeyNames.Name(key)} is assigned more than once.";
-                }
+                if (CheckPopupKey(l.PopupKey, $"Link \"{l.Label}\"") is { } linkProblem)
+                    return linkProblem;
             }
         }
         return null;

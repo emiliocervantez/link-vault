@@ -56,6 +56,9 @@
                         <CheckBox x:Name="ShowInlineBox" Margin="0,8,0,0" Click="ShowInline_Click"
                                   Content="Show links in the popup"
                                   ToolTip="Checked: every link of the group is listed in the popup. Unchecked: the popup shows only the group name, which opens a submenu with its links."/>
+                        <TextBlock Text="Popup key:" Margin="0,8,0,2"/>
+                        <local:PopupKeyBox x:Name="GroupPopupKeyBox"
+                                           ToolTip="A single key that selects this group while the popup is open: its first link, or its submenu when the links are hidden."/>
                     </StackPanel>
                 </Grid>
             </GroupBox>

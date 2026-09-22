@@ -66,6 +66,23 @@ public class SettingsTests
     }
 
     [Fact]
+    public void Group_popup_keys_share_the_link_key_space()
+    {
+        var s = WithLinks(new Link { Url = "https://a", PopupKey = 0x59 });
+        s.Groups[0].PopupKey = 0x44;
+        Assert.Null(s.Validate());
+        s.Groups[0].PopupKey = 0x59;
+        Assert.Contains("Popup key Y is assigned more than once", s.Validate());
+        s.Groups[0].PopupKey = 0x1B;
+        Assert.Contains("Group \"g\": Esc is used for navigation", s.Validate());
+
+        s.Groups[0].PopupKey = 0x44;
+        var back = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(s))!;
+        Assert.Equal(0x44, back.Groups[0].PopupKey);
+        Assert.Equal(0x44, s.Clone().Groups[0].PopupKey);
+    }
+
+    [Fact]
     public void Links_without_hotkey_or_name_are_fine()
     {
         Assert.Null(WithLinks(new Link { Url = "https://a" }, new Link { Url = "mailto:x@y.z" }).Validate());

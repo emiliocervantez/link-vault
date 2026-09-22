@@ -31,6 +31,7 @@ public partial class SettingsWindow : Window
         LinkGroupBox.ItemsSource = _draft.Groups;
         LinkHotkeyBox.ValueChanged += () => { if (_link is not null) _link.Hotkey = LinkHotkeyBox.Value; };
         LinkPopupKeyBox.ValueChanged += () => { if (_link is not null) _link.PopupKey = LinkPopupKeyBox.Value; };
+        GroupPopupKeyBox.ValueChanged += () => { if (_group is not null) _group.PopupKey = GroupPopupKeyBox.Value; };
         if (_draft.Groups.Count > 0) GroupList.SelectedIndex = 0;
     }
 
@@ -44,6 +45,7 @@ public partial class SettingsWindow : Window
         LinksBox.IsEnabled = _group is not null;
         GroupNameBox.Text = _group?.Name ?? "";
         ShowInlineBox.IsChecked = _group?.ShowInline ?? false;
+        GroupPopupKeyBox.Value = _group?.PopupKey;
         LinkList.ItemsSource = _group?.Links;
         _loading = false;
         if (_group?.Links.Count > 0) LinkList.SelectedIndex = 0;
