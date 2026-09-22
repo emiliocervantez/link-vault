@@ -133,7 +133,8 @@ internal sealed class LinkPopup
 
     private static Row Header(string name) => new()
     {
-        Content = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = LabelMaxWidth + IconSize },
+        // Black, not the gray of other non-selectable rows: it looks the same as a Collapsed Group's name.
+        Content = new TextBlock { Text = name, Foreground = Brushes.Black, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = LabelMaxWidth + IconSize },
         Selectable = false,
         FontWeight = FontWeights.Bold,
     };
@@ -186,14 +187,14 @@ internal sealed class LinkPopup
         grid.Children.Add(new TextBlock
         {
             Text = group.Name,
-            Margin = new Thickness(IconSize + 8, 0, 24, 0),
+            Margin = new Thickness(0, 0, 24, 0),   // aligned and styled like an Inline Group header
             MaxWidth = LabelMaxWidth,
             TextTrimming = TextTrimming.CharacterEllipsis,
         });
         var arrow = new TextBlock { Text = "▸" };
         Grid.SetColumn(arrow, 1);
         grid.Children.Add(arrow);
-        return new Row { Content = grid, Tag = group };
+        return new Row { Content = grid, Tag = group, FontWeight = FontWeights.Bold };
     }
 
     // ---- input ----
