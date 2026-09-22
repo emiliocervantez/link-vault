@@ -87,6 +87,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
@@ -106,11 +107,15 @@
                     <TextBlock Grid.Row="3" Grid.Column="0" Text="Hotkey:" VerticalAlignment="Center" Margin="0,0,8,6"/>
                     <local:HotkeyBox Grid.Row="3" Grid.Column="1" x:Name="LinkHotkeyBox" Margin="0,0,0,6" VerticalContentAlignment="Center"/>
 
-                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Group:" VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <ComboBox Grid.Row="4" Grid.Column="1" x:Name="LinkGroupBox" Margin="0,0,0,6" DisplayMemberPath="Name"
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Popup key:" VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <local:PopupKeyBox Grid.Row="4" Grid.Column="1" x:Name="LinkPopupKeyBox" Margin="0,0,0,6" VerticalContentAlignment="Center"
+                                       ToolTip="A single key (e.g. Y) that opens this link while the popup is open."/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Group:" VerticalAlignment="Center" Margin="0,0,8,6"/>
+                    <ComboBox Grid.Row="5" Grid.Column="1" x:Name="LinkGroupBox" Margin="0,0,0,6" DisplayMemberPath="Name"
                               SelectionChanged="LinkGroup_SelectionChanged"/>
 
-                    <TextBlock Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0">
+                    <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0">
                         Parameters: write <Run FontFamily="Consolas">{name}</Run> or <Run FontFamily="Consolas">{name=default}</Run> in the URL,
                         e.g. <Run FontFamily="Consolas">https://www.google.com/search?q={query}</Run>.
                         Their values are asked for when the link is opened. Use <Run FontFamily="Consolas">{{</Run> and

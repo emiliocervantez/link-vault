@@ -28,5 +28,5 @@ Reasons:
 ## Consequences
 
 - LinkVault owns submenu placement and keyboard routing, which a `ContextMenu` would provide.
-- Link Hotkeys do not fire while the Popup is open: the keyboard hook swallows every key before `RegisterHotKey` sees it. Only the Popup Hotkey is recognised there, and it closes the Popup.
+- Link Hotkeys do not fire while the Popup is open: the keyboard hook swallows every key before `RegisterHotKey` sees it. Only the Popup Hotkey is recognised there, and it closes the Popup. Popup Keys (bare keys that open a Link) fill that role inside the Popup.
 - The Input Window for Parameters does take focus. It opens only after the Popup has closed.

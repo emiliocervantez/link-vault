@@ -9,6 +9,8 @@ public sealed class Link
     /// <summary>A Url Template: may contain Parameters.</summary>
     public string Url { get; set; } = "";
     public Hotkey? Hotkey { get; set; }
+    /// <summary>Virtual-key code of a single key (no modifiers) that Opens the Link while the Popup is open.</summary>
+    public int? PopupKey { get; set; }
 
     [JsonIgnore]
     public string Label => string.IsNullOrWhiteSpace(Name) ? Url : Name;
@@ -18,7 +20,13 @@ public sealed class Link
         Name = Name,
         Url = Url,
         Hotkey = Hotkey is null ? null : new Hotkey(Hotkey.Modifiers, Hotkey.VirtualKey),
+        PopupKey = PopupKey,
     };
+
+    /// <summary>Keys the Popup uses for navigation (Tab, Enter, Esc, Space, PageUp/Down, End, Home, arrows), plus modifiers; never a Popup Key.</summary>
+    public static bool IsReservedPopupKey(int vk) =>
+        vk is 0x09 or 0x0D or 0x1B or (>= 0x20 and <= 0x28)
+        or 0x10 or 0x11 or 0x12 or 0x5B or 0x5C or (>= 0xA0 and <= 0xA5);
 }
 
 public sealed class Group
@@ -63,6 +71,7 @@ public sealed class Settings
             return "The popup hotkey must be set.";
 
         var seen = new HashSet<Hotkey> { PopupHotkey };
+        var seenKeys = new HashSet<int>();
         foreach (var g in Groups)
         {
             if (string.IsNullOrWhiteSpace(g.Name))
@@ -75,6 +84,13 @@ public sealed class Settings
                     return $"Link \"{l.Label}\" in group \"{g.Name}\": {error}";
                 if (l.Hotkey is { IsEmpty: false } hk && !seen.Add(hk))
                     return $"Hotkey {hk} is assigned more than once.";
+                if (l.PopupKey is { } key)
+                {
+                    if (Link.IsReservedPopupKey(key))
+                        return $"Link \"{l.Label}\": {KeyNames.Name(key)} is used for navigation in the popup and cannot be a popup key.";
+                    if (!seenKeys.Add(key))
+                        return $"Popup key {KeyNames.Name(key)} is assigned more than once.";
+                }
             }
         }
         return null;

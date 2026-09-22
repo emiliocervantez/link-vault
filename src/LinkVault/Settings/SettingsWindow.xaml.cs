@@ -30,6 +30,7 @@ public partial class SettingsWindow : Window
         GroupList.ItemsSource = _draft.Groups;
         LinkGroupBox.ItemsSource = _draft.Groups;
         LinkHotkeyBox.ValueChanged += () => { if (_link is not null) _link.Hotkey = LinkHotkeyBox.Value; };
+        LinkPopupKeyBox.ValueChanged += () => { if (_link is not null) _link.PopupKey = LinkPopupKeyBox.Value; };
         if (_draft.Groups.Count > 0) GroupList.SelectedIndex = 0;
     }
 
@@ -109,6 +110,7 @@ public partial class SettingsWindow : Window
         LinkNameBox.Text = _link?.Name ?? "";
         LinkUrlBox.Text = _link?.Url ?? "";
         LinkHotkeyBox.Value = _link?.Hotkey;
+        LinkPopupKeyBox.Value = _link?.PopupKey;
         LinkGroupBox.SelectedItem = _link is null ? null : _group;
         _loading = false;
         ShowUrlInfo();

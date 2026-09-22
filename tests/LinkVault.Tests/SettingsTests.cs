@@ -52,6 +52,20 @@ public class SettingsTests
     }
 
     [Fact]
+    public void Validate_checks_popup_keys()
+    {
+        Assert.Null(WithLinks(new Link { Url = "https://a", PopupKey = 0x59 }, new Link { Url = "https://b", PopupKey = 0x31 }).Validate());
+        Assert.Contains("Popup key Y is assigned more than once", WithLinks(new Link { Url = "https://a", PopupKey = 0x59 }, new Link { Url = "https://b", PopupKey = 0x59 }).Validate());
+        Assert.Contains("Enter is used for navigation", WithLinks(new Link { Url = "https://a", PopupKey = 0x0D }).Validate());
+        Assert.Contains("Down is used for navigation", WithLinks(new Link { Url = "https://a", PopupKey = 0x28 }).Validate());
+
+        var s = new Settings();
+        s.Groups.Add(new Group { Name = "g1", Links = { new Link { Url = "https://a", PopupKey = 0x59 } } });
+        s.Groups.Add(new Group { Name = "g2", ShowInline = false, Links = { new Link { Url = "https://b", PopupKey = 0x59 } } });
+        Assert.Contains("more than once", s.Validate());   // unique across groups, collapsed or not
+    }
+
+    [Fact]
     public void Links_without_hotkey_or_name_are_fine()
     {
         Assert.Null(WithLinks(new Link { Url = "https://a" }, new Link { Url = "mailto:x@y.z" }).Validate());
@@ -60,7 +74,7 @@ public class SettingsTests
     [Fact]
     public void Json_round_trip()
     {
-        var s = WithLinks(new Link { Name = "n", Url = "https://x/{q=1}", Hotkey = new Hotkey(HotkeyModifiers.Win | HotkeyModifiers.Shift, 0x41) });
+        var s = WithLinks(new Link { Name = "n", Url = "https://x/{q=1}", Hotkey = new Hotkey(HotkeyModifiers.Win | HotkeyModifiers.Shift, 0x41), PopupKey = 0x59 });
         s.Groups[0].ShowInline = false;
         s.StartWithWindows = true;
         var back = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(s))!;
@@ -69,6 +83,7 @@ public class SettingsTests
         Assert.Equal("n", back.Groups[0].Links[0].Name);
         Assert.Equal("https://x/{q=1}", back.Groups[0].Links[0].Url);
         Assert.Equal("Shift+Win+A", back.Groups[0].Links[0].Hotkey!.ToString());
+        Assert.Equal(0x59, back.Groups[0].Links[0].PopupKey);
         Assert.DoesNotContain("Label", JsonSerializer.Serialize(s));
         Assert.DoesNotContain("AllLinks", JsonSerializer.Serialize(s));
     }
@@ -76,8 +91,9 @@ public class SettingsTests
     [Fact]
     public void Clone_is_deep()
     {
-        var s = WithLinks(new Link { Name = "t", Url = "https://x", Hotkey = new Hotkey(HotkeyModifiers.Alt, 0x41) });
+        var s = WithLinks(new Link { Name = "t", Url = "https://x", Hotkey = new Hotkey(HotkeyModifiers.Alt, 0x41), PopupKey = 0x59 });
         var c = s.Clone();
+        Assert.Equal(0x59, c.Groups[0].Links[0].PopupKey);
         c.Groups[0].Name = "changed";
         c.Groups[0].Links[0].Name = "changed";
         c.Groups[0].Links[0].Hotkey!.VirtualKey = 1;

@@ -14,6 +14,7 @@ LinkVault is a Windows tray tool that keeps a user's links in groups and opens t
 | **Popup** | The menu listing the Groups and Links, opened at the mouse cursor with the Popup Hotkey or a click on the tray icon. Empty Groups are not shown. Rows show the site's icon. |
 | **Popup Hotkey** | The global key combination that opens and closes the Popup. |
 | **Link Hotkey** | A global key combination that Opens one Link directly, without the Popup. |
+| **Popup Key** | A single key without modifiers (e.g. `Y`) that Opens one Link while the Popup is open, whether its Group is Inline or Collapsed. Unique across all Links; shown on the Link's row. Navigation keys cannot be Popup Keys. |
 | **Url Template** | A Link's URL when it contains Parameters. |
 | **Parameter** | A placeholder in a Url Template, written `{name}` or `{name=default}`. The same name used twice is one Parameter. `{{` and `}}` are literal braces. |
 | **Default** | The value a Parameter's field starts with in the Input Window. |

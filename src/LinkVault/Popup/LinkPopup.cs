@@ -140,24 +140,42 @@ internal sealed class LinkPopup
 
     private Row LinkRow(Link link)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal };
-        panel.Children.Add(new Image
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var icon = new Image
         {
             Source = _icons.For(link),
             Width = IconSize,
             Height = IconSize,
             Margin = new Thickness(0, 0, 8, 0),
             VerticalAlignment = VerticalAlignment.Center,
-        });
-        RenderOptions.SetBitmapScalingMode(panel.Children[0], BitmapScalingMode.HighQuality);
-        panel.Children.Add(new TextBlock
+        };
+        RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality);
+        grid.Children.Add(icon);
+        var label = new TextBlock
         {
             Text = link.Label,
             MaxWidth = LabelMaxWidth,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
-        });
-        return new Row { Content = panel, Tag = link, ToolTip = link.Url };
+        };
+        Grid.SetColumn(label, 1);
+        grid.Children.Add(label);
+        if (link.PopupKey is { } key)
+        {
+            var keyText = new TextBlock
+            {
+                Text = KeyNames.Name(key),
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(24, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(keyText, 2);
+            grid.Children.Add(keyText);
+        }
+        return new Row { Content = grid, Tag = link, ToolTip = link.Url };
     }
 
     private static Row GroupRow(Group group)
@@ -220,8 +238,22 @@ internal sealed class LinkPopup
                 return;
         }
 
-        if (IsPopupHotkey(vk)) Close();
+        if (IsPopupHotkey(vk)) { Close(); return; }
+
+        // Popup Keys work from anywhere in the Popup, including for Links of Collapsed Groups.
+        if (!ModifierHeld() && _settings().AllLinks.FirstOrDefault(l => l.PopupKey == vk) is { } link)
+        {
+            Close();
+            _onLinkChosen(link);
+        }
         // every other key is swallowed by the hook and ignored here, like a menu would
+    }
+
+    /// <summary>Ctrl, Alt or Win held: Popup Keys are bare keys (Shift is ignored).</summary>
+    private static bool ModifierHeld()
+    {
+        static bool Down(int key) => (GetAsyncKeyState(key) & 0x8000) != 0;
+        return Down(VK_CONTROL) || Down(VK_MENU) || Down(VK_LWIN) || Down(VK_RWIN);
     }
 
     private void Activate(Row row)
