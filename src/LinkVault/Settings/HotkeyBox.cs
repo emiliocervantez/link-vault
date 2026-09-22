@@ -52,13 +52,16 @@ internal sealed class HotkeyBox : TextBox
         if (current.HasFlag(ModifierKeys.Control)) mods |= HotkeyModifiers.Control;
         if (current.HasFlag(ModifierKeys.Alt)) mods |= HotkeyModifiers.Alt;
         if (current.HasFlag(ModifierKeys.Shift)) mods |= HotkeyModifiers.Shift;
-        if (current.HasFlag(ModifierKeys.Windows)) mods |= HotkeyModifiers.Win;
+        if (WinHeld()) mods |= HotkeyModifiers.Win;
 
         var vk = KeyInterop.VirtualKeyFromKey(key);
         if (mods == HotkeyModifiers.None && !KeyNames.IsFunctionKey(vk)) return;   // a bare letter is not a hotkey
 
         Set(new Hotkey(mods, vk));
     }
+
+    /// <summary>WPF's Keyboard.Modifiers never includes ModifierKeys.Windows, so the Win keys are read directly.</summary>
+    internal static bool WinHeld() => Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin);
 
     private void Set(Hotkey? value)
     {

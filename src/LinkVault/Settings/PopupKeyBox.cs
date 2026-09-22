@@ -43,7 +43,7 @@ internal sealed class PopupKeyBox : TextBox
             e.Handled = false;   // keep focus navigation working
             return;
         }
-        if (Keyboard.Modifiers != ModifierKeys.None) return;   // popup keys have no modifiers
+        if (Keyboard.Modifiers != ModifierKeys.None || HotkeyBox.WinHeld()) return;   // popup keys have no modifiers
 
         var vk = KeyInterop.VirtualKeyFromKey(key);
         if (vk == 0 || Link.IsReservedPopupKey(vk)) return;
