@@ -45,6 +45,7 @@ public partial class SettingsWindow : Window
         LinksBox.IsEnabled = _group is not null;
         GroupNameBox.Text = _group?.Name ?? "";
         ShowInlineBox.IsChecked = _group?.ShowInline ?? false;
+        HideNameBox.IsChecked = _group?.HideName ?? false;
         GroupPopupKeyBox.Value = _group?.PopupKey;
         LinkList.ItemsSource = _group?.Links;
         _loading = false;
@@ -63,8 +64,9 @@ public partial class SettingsWindow : Window
     private void RemoveGroup_Click(object sender, RoutedEventArgs e)
     {
         if (_group is null) return;
-        if (_group.Links.Count > 0 &&
-            MessageBox.Show(this, $"Remove group \"{_group.Name}\" and its {_group.Links.Count} link(s)?", "LinkVault",
+        var linkCount = _group.Links.Count(l => !l.IsDivider);
+        if (linkCount > 0 &&
+            MessageBox.Show(this, $"Remove group \"{_group.Name}\" and its {linkCount} link(s)?", "LinkVault",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
             return;
         var index = _draft.Groups.IndexOf(_group);
@@ -102,13 +104,18 @@ public partial class SettingsWindow : Window
         if (_group is not null) _group.ShowInline = ShowInlineBox.IsChecked == true;
     }
 
+    private void HideName_Click(object sender, RoutedEventArgs e)
+    {
+        if (_group is not null) _group.HideName = HideNameBox.IsChecked == true;
+    }
+
     // ---- links ----
 
     private void LinkList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _link = LinkList.SelectedItem as Link;
         _loading = true;
-        LinkEditor.IsEnabled = _link is not null;
+        LinkEditor.IsEnabled = _link is { IsDivider: false };
         LinkNameBox.Text = _link?.Name ?? "";
         LinkUrlBox.Text = _link?.Url ?? "";
         LinkHotkeyBox.Value = _link?.Hotkey;
@@ -126,6 +133,15 @@ public partial class SettingsWindow : Window
         RefreshLinks(link);
         LinkUrlBox.Focus();
         LinkUrlBox.CaretIndex = LinkUrlBox.Text.Length;
+    }
+
+    private void AddDivider_Click(object sender, RoutedEventArgs e)
+    {
+        if (_group is null) return;
+        var divider = Link.Divider();
+        var index = _link is null ? _group.Links.Count : _group.Links.IndexOf(_link) + 1;
+        _group.Links.Insert(index, divider);
+        RefreshLinks(divider);
     }
 
     private void RemoveLink_Click(object sender, RoutedEventArgs e)
@@ -170,7 +186,7 @@ public partial class SettingsWindow : Window
     /// <summary>Lists the Parameters found in the URL, or the reason it cannot be parsed.</summary>
     private void ShowUrlInfo()
     {
-        if (_link is null) { UrlInfo.Text = ""; return; }
+        if (_link is null or { IsDivider: true }) { UrlInfo.Text = ""; return; }
         var template = UrlTemplate.TryParse(_link.Url, out var error);
         if (template is null)
         {

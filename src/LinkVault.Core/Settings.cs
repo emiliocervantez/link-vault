@@ -11,12 +11,18 @@ public sealed class Link
     public Hotkey? Hotkey { get; set; }
     /// <summary>Virtual-key code of a single key (no modifiers) that Opens the Link while the Popup is open.</summary>
     public int? PopupKey { get; set; }
+    /// <summary>A Divider: a line between Links of a Group, not a Link. Its other properties are unused.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsDivider { get; set; }
 
     [JsonIgnore]
-    public string Label => string.IsNullOrWhiteSpace(Name) ? Url : Name;
+    public string Label => IsDivider ? "────────────" : string.IsNullOrWhiteSpace(Name) ? Url : Name;
+
+    public static Link Divider() => new() { IsDivider = true };
 
     public Link Clone() => new()
     {
+        IsDivider = IsDivider,
         Name = Name,
         Url = Url,
         Hotkey = Hotkey is null ? null : new Hotkey(Hotkey.Modifiers, Hotkey.VirtualKey),
@@ -34,14 +40,21 @@ public sealed class Group
     public string Name { get; set; } = "";
     /// <summary>True: the Group's Links are listed in the Popup itself. False: the Popup shows a submenu entry.</summary>
     public bool ShowInline { get; set; } = true;
+    /// <summary>Only for Inline Groups: list the Links without the header row showing the Group's name.</summary>
+    public bool HideName { get; set; }
     public List<Link> Links { get; set; } = new();
     /// <summary>Virtual-key code of a single key that moves to this Group while the Popup is open. Shares the Popup Key space with Links.</summary>
     public int? PopupKey { get; set; }
+
+    /// <summary>True when the Group has at least one real Link (Dividers do not count).</summary>
+    [JsonIgnore]
+    public bool HasLinks => Links.Any(l => !l.IsDivider);
 
     public Group Clone() => new()
     {
         Name = Name,
         ShowInline = ShowInline,
+        HideName = HideName,
         PopupKey = PopupKey,
         Links = Links.Select(l => l.Clone()).ToList(),
     };
@@ -58,7 +71,7 @@ public sealed class Settings
     public static Hotkey DefaultPopupHotkey() => new(HotkeyModifiers.Control | HotkeyModifiers.Alt, VkL);
 
     [JsonIgnore]
-    public IEnumerable<Link> AllLinks => Groups.SelectMany(g => g.Links);
+    public IEnumerable<Link> AllLinks => Groups.SelectMany(g => g.Links).Where(l => !l.IsDivider);
 
     public Settings Clone() => new()
     {
@@ -89,7 +102,7 @@ public sealed class Settings
                 return "Every group needs a name.";
             if (CheckPopupKey(g.PopupKey, $"Group \"{g.Name}\"") is { } groupProblem)
                 return groupProblem;
-            foreach (var l in g.Links)
+            foreach (var l in g.Links.Where(l => !l.IsDivider))
             {
                 if (string.IsNullOrWhiteSpace(l.Url))
                     return $"Link \"{l.Label}\" in group \"{g.Name}\" has no URL.";

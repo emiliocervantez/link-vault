@@ -85,7 +85,7 @@ internal sealed class LinkPopup
         if (_openGroup != group || !_sub.IsVisible)
         {
             var row = _main.SelectedRow;
-            _sub.SetRows(group.Links.Select(LinkRow).ToList(), -1);
+            _sub.SetRows(group.Links.Select(ItemRow).ToList(), -1);
             _sub.ShowBeside(_main.ScreenRect(), row is null ? _main.ScreenRect().Top : _main.RowScreenTop(row));
             _openGroup = group;
         }
@@ -105,15 +105,15 @@ internal sealed class LinkPopup
         var rows = new List<Row>();
         _groupStarts.Clear();
         var previousInline = false;
-        foreach (var group in _settings().Groups.Where(g => g.Links.Count > 0))
+        foreach (var group in _settings().Groups.Where(g => g.HasLinks))
         {
             // Inline Groups are set apart by separators; consecutive Collapsed Groups sit together.
             if (rows.Count > 0 && (group.ShowInline || previousInline)) rows.Add(Separator());
             if (group.ShowInline)
             {
-                rows.Add(Header(group));
-                _groupStarts.Add((group, rows.Count));
-                rows.AddRange(group.Links.Select(LinkRow));
+                if (!group.HideName) rows.Add(Header(group));
+                _groupStarts.Add((group, rows.Count + group.Links.FindIndex(l => !l.IsDivider)));   // skip leading Dividers
+                rows.AddRange(group.Links.Select(ItemRow));
             }
             else
             {
@@ -161,6 +161,8 @@ internal sealed class LinkPopup
         Grid.SetColumn(text, column);
         grid.Children.Add(text);
     }
+
+    private Row ItemRow(Link item) => item.IsDivider ? Separator() : LinkRow(item);
 
     private Row LinkRow(Link link)
     {

@@ -21,6 +21,7 @@ public class SettingsTests
         Assert.False(s.StartWithWindows);
         Assert.Empty(s.Groups);
         Assert.True(new Group().ShowInline);
+        Assert.False(new Group().HideName);
         Assert.Null(s.Validate());
     }
 
@@ -83,6 +84,22 @@ public class SettingsTests
     }
 
     [Fact]
+    public void Dividers_are_not_links()
+    {
+        var s = WithLinks(Link.Divider(), new Link { Url = "https://a" }, Link.Divider(), Link.Divider());
+        Assert.Null(s.Validate());   // no URL needed
+        Assert.Single(s.AllLinks);
+        Assert.True(s.Groups[0].HasLinks);
+        Assert.False(new Group { Name = "d", Links = { Link.Divider() } }.HasLinks);
+        Assert.True(s.Clone().Groups[0].Links[0].IsDivider);
+
+        var json = JsonSerializer.Serialize(s);
+        Assert.Equal(3, json.Split("IsDivider").Length - 1);   // written only for Dividers
+        var back = JsonSerializer.Deserialize<Settings>(json)!;
+        Assert.Equal(new[] { true, false, true, true }, back.Groups[0].Links.Select(l => l.IsDivider));
+    }
+
+    [Fact]
     public void Links_without_hotkey_or_name_are_fine()
     {
         Assert.Null(WithLinks(new Link { Url = "https://a" }, new Link { Url = "mailto:x@y.z" }).Validate());
@@ -93,10 +110,13 @@ public class SettingsTests
     {
         var s = WithLinks(new Link { Name = "n", Url = "https://x/{q=1}", Hotkey = new Hotkey(HotkeyModifiers.Win | HotkeyModifiers.Shift, 0x41), PopupKey = 0x59 });
         s.Groups[0].ShowInline = false;
+        s.Groups[0].HideName = true;
         s.StartWithWindows = true;
         var back = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(s))!;
         Assert.True(back.StartWithWindows);
         Assert.False(back.Groups[0].ShowInline);
+        Assert.True(back.Groups[0].HideName);
+        Assert.True(s.Clone().Groups[0].HideName);
         Assert.Equal("n", back.Groups[0].Links[0].Name);
         Assert.Equal("https://x/{q=1}", back.Groups[0].Links[0].Url);
         Assert.Equal("Shift+Win+A", back.Groups[0].Links[0].Hotkey!.ToString());

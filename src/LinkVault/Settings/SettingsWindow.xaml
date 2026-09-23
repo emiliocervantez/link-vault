@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:LinkVault.Config"
         Title="LinkVault Settings"
-        Width="980" Height="600" MinWidth="780" MinHeight="420"
+        Width="1010" Height="600" MinWidth="810" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="True">
     <Window.Resources>
@@ -31,7 +31,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="250"/>
-                <ColumnDefinition Width="280"/>
+                <ColumnDefinition Width="310"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -56,6 +56,10 @@
                         <CheckBox x:Name="ShowInlineBox" Margin="0,8,0,0" Click="ShowInline_Click"
                                   Content="Show links in the popup"
                                   ToolTip="Checked: every link of the group is listed in the popup. Unchecked: the popup shows only the group name, which opens a submenu with its links."/>
+                        <CheckBox x:Name="HideNameBox" Margin="20,6,0,0" Click="HideName_Click"
+                                  IsEnabled="{Binding IsChecked, ElementName=ShowInlineBox}"
+                                  Content="Hide group name"
+                                  ToolTip="List the links in the popup without the group name above them."/>
                         <TextBlock Text="Popup key:" Margin="0,8,0,2"/>
                         <local:PopupKeyBox x:Name="GroupPopupKeyBox"
                                            ToolTip="A single key that selects this group while the popup is open: its first link, or its submenu when the links are hidden."/>
@@ -73,6 +77,8 @@
                     <ListBox x:Name="LinkList" Grid.Row="0" DisplayMemberPath="Label" SelectionChanged="LinkList_SelectionChanged"/>
                     <WrapPanel Grid.Row="1" Margin="0,6,0,0">
                         <Button Content="Add" Style="{StaticResource SmallButton}" Click="AddLink_Click"/>
+                        <Button Content="Divider" Style="{StaticResource SmallButton}" Click="AddDivider_Click"
+                                ToolTip="Insert a divider line after the selected link"/>
                         <Button Content="Remove" Style="{StaticResource SmallButton}" Click="RemoveLink_Click"/>
                         <Button Content="▲" ToolTip="Move up" Style="{StaticResource SmallButton}" MinWidth="28" Click="LinkUp_Click"/>
                         <Button Content="▼" ToolTip="Move down" Style="{StaticResource SmallButton}" MinWidth="28" Click="LinkDown_Click"/>
