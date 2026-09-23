@@ -50,4 +50,11 @@ public sealed class VaultStorage
         File.WriteAllText(tmp, JsonSerializer.Serialize(settings, Json));
         File.Move(tmp, _settingsFile, overwrite: true);
     }
+
+    /// <summary>Writes the settings to a file of the user's choosing, in the settings.json format.</summary>
+    public static void Export(Settings settings, string path) => File.WriteAllText(path, JsonSerializer.Serialize(settings, Json));
+
+    /// <summary>Reads settings written by <see cref="Export"/>. Throws JsonException or IOException when the file cannot be used.</summary>
+    public static Settings Import(string path) =>
+        JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), Json) ?? throw new JsonException("The file holds no settings.");
 }

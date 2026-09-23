@@ -26,11 +26,15 @@
             <CheckBox x:Name="StartupBox" Content="Start with Windows" VerticalAlignment="Center" Margin="0,0,24,0"/>
             <Button Content="Refresh icons" Style="{StaticResource SmallButton}" Click="RefreshIcons_Click"
                     ToolTip="Download the favicon of every website again"/>
+            <Button Content="Export..." Style="{StaticResource SmallButton}" Click="Export_Click"
+                    ToolTip="Save these settings to a file"/>
+            <Button Content="Import..." Style="{StaticResource SmallButton}" Click="Import_Click"
+                    ToolTip="Replace these settings with ones from a file. Nothing is applied until OK."/>
         </WrapPanel>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="290"/>
+                <ColumnDefinition Width="330"/>
                 <ColumnDefinition Width="310"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -142,6 +146,7 @@
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Content="OK" Width="80" IsDefault="True" Click="Ok_Click"/>
             <Button Content="Cancel" Width="80" Margin="8,0,0,0" IsCancel="True" Click="Cancel_Click"/>
+            <Button Content="Apply" Width="80" Margin="8,0,0,0" Click="Apply_Click"/>
         </StackPanel>
     </Grid>
 </Window>

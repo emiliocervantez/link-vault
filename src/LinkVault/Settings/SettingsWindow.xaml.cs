@@ -12,7 +12,7 @@ public partial class SettingsWindow : Window
     /// <summary>An entry of the link editor's Group list; Subgroups are indented under their parent.</summary>
     private sealed record GroupChoice(Group Group, string Display);
 
-    private readonly CoreSettings _draft;
+    private CoreSettings _draft;
     private readonly Func<CoreSettings, IReadOnlyList<string>> _apply;
     private readonly Action<IEnumerable<Link>> _refreshIcons;
     /// <summary>The Group or Subgroup selected in the tree; its entries are listed in the Links pane.</summary>
@@ -318,10 +318,55 @@ public partial class SettingsWindow : Window
 
     private void RefreshIcons_Click(object sender, RoutedEventArgs e) => _refreshIcons(_draft.AllLinks.ToList());
 
+    private void Export_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog { FileName = "LinkVault settings.json", Filter = JsonFilter };
+        if (dialog.ShowDialog(this) != true) return;
+        _draft.PopupHotkey = PopupHotkeyBox.Value ?? new Hotkey();
+        _draft.StartWithWindows = StartupBox.IsChecked == true;
+        try
+        {
+            VaultStorage.Export(_draft, dialog.FileName);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, $"Could not export: {ex.Message}", "LinkVault", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Replaces the draft with the file's settings; OK applies them, Cancel drops them.</summary>
+    private void Import_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = JsonFilter };
+        if (dialog.ShowDialog(this) != true) return;
+        try
+        {
+            _draft = VaultStorage.Import(dialog.FileName);
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or System.IO.IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, $"Could not import: {ex.Message}", "LinkVault", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        PopupHotkeyBox.Value = _draft.PopupHotkey;
+        StartupBox.IsChecked = _draft.StartWithWindows;
+        RefreshGroups(_draft.Groups.FirstOrDefault());
+    }
+
+    private const string JsonFilter = "LinkVault settings (*.json)|*.json|All files (*.*)|*.*";
+
     // IsCancel only closes windows opened with ShowDialog; this one is opened with Show.
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
 
     private void Ok_Click(object sender, RoutedEventArgs e)
+    {
+        if (Apply()) Close();
+    }
+
+    private void Apply_Click(object sender, RoutedEventArgs e) => Apply();
+
+    /// <summary>Validates and applies a copy of the draft, so editing can go on without touching the live settings. False when invalid.</summary>
+    private bool Apply()
     {
         _draft.PopupHotkey = PopupHotkeyBox.Value ?? new Hotkey();
         _draft.StartWithWindows = StartupBox.IsChecked == true;
@@ -329,14 +374,20 @@ public partial class SettingsWindow : Window
         if (_draft.Validate() is { } problem)
         {
             MessageBox.Show(this, problem, "LinkVault", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
-        var failures = _apply(_draft);
+        var applied = _draft.Clone();
+        var failures = _apply(applied);
         if (failures.Count > 0)
         {
+            // Hotkeys Windows refused were changed in the applied copy (fallback or cleared); show that in the draft too.
+            _draft.PopupHotkey = applied.PopupHotkey;
+            PopupHotkeyBox.Value = applied.PopupHotkey;
+            foreach (var (draft, live) in _draft.AllLinks.Zip(applied.AllLinks)) draft.Hotkey = live.Hotkey;
+            LinkHotkeyBox.Value = _link?.Hotkey;
             MessageBox.Show(this, string.Join("\n\n", failures), "LinkVault - hotkeys", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
-        Close();
+        return true;
     }
 }

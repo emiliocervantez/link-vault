@@ -204,4 +204,23 @@ public class SettingsTests
             Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Export_and_import()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"LinkVaultExport{Guid.NewGuid():N}.json");
+        try
+        {
+            VaultStorage.Export(WithLinks(new Link { Url = "https://a" }), file);
+            Assert.Equal("https://a", VaultStorage.Import(file).Groups[0].Links[0].Url);
+            File.WriteAllText(file, "{ not json");
+            Assert.ThrowsAny<System.Text.Json.JsonException>(() => VaultStorage.Import(file));
+            File.WriteAllText(file, "null");
+            Assert.ThrowsAny<System.Text.Json.JsonException>(() => VaultStorage.Import(file));
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
 }
