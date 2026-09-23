@@ -69,7 +69,7 @@ internal sealed class PopupInputHooks : IDisposable
         _keyboardHook = _mouseHook = _foregroundHook = IntPtr.Zero;
     }
 
-    private static bool IsModifier(int vk) => vk is VK_SHIFT or VK_CONTROL or VK_MENU or VK_LWIN or VK_RWIN
+    internal static bool IsModifier(int vk) => vk is VK_SHIFT or VK_CONTROL or VK_MENU or VK_LWIN or VK_RWIN
         or 0xA0 or 0xA1 or 0xA2 or 0xA3 or 0xA4 or 0xA5;   // L/R Shift, Ctrl, Alt
 
     private static bool Held(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
