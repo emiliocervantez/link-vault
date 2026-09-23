@@ -10,8 +10,9 @@ using static LinkVault.Native.NativeMethods;
 namespace LinkVault.Popup;
 
 /// <summary>
-/// The Popup: Links of Inline Groups under a header, Collapsed Groups as "Name ▸" rows that open a submenu.
-/// Neither window takes focus; while the Popup is open a low-level keyboard hook feeds it navigation keys
+/// The Popup: Links of Inline Groups under a header, Collapsed Groups and Subgroups as "Name ▸" rows that open a
+/// submenu. Up to three windows cascade: main, a submenu, and a Subgroup's submenu inside a Collapsed Group's.
+/// None of them takes focus; while the Popup is open a low-level keyboard hook feeds it navigation keys
 /// and swallows them (see ADR 1).
 /// </summary>
 internal sealed class LinkPopup
@@ -22,10 +23,12 @@ internal sealed class LinkPopup
     private readonly Func<Settings> _settings;
     private readonly FaviconCache _icons;
     private readonly Action<Link> _onLinkChosen;
-    private readonly PopupWindow _main;
-    private readonly PopupWindow _sub;
+    private const int Levels = 3;
+
+    /// <summary>[0] is the main window; [n] shows the items of <see cref="_openGroups"/>[n], beside the selected row of [n - 1].</summary>
+    private readonly PopupWindow[] _levels = new PopupWindow[Levels];
+    private readonly Group?[] _openGroups = new Group?[Levels];
     private readonly PopupInputHooks _hooks;
-    private Group? _openGroup;
     /// <summary>Each shown Group with the main-window index of its first selectable row, in order.</summary>
     private readonly List<(Group Group, int Row)> _groupStarts = new();
 
@@ -35,25 +38,40 @@ internal sealed class LinkPopup
         _icons = icons;
         _onLinkChosen = onLinkChosen;
 
-        _main = new PopupWindow();
-        _main.RowClicked += Activate;
-        _main.RowHovered += row =>
+        for (var i = 0; i < Levels; i++)
         {
-            if (row.Tag is Group g) OpenSub(g, selectFirst: false);
-            else CloseSub();
-        };
+            var level = i;
+            var window = new PopupWindow();
+            window.RowClicked += row => Activate(level, row);
+            window.RowHovered += row =>
+            {
+                if (row.Tag is Group g) OpenSub(level, g, selectFirst: false);
+                else CloseFrom(level + 1);
+            };
+            _levels[i] = window;
+        }
 
-        _sub = new PopupWindow();
-        _sub.RowClicked += Activate;
-
-        _hooks = new PopupInputHooks(_main.Dispatcher);
+        _hooks = new PopupInputHooks(Main.Dispatcher);
         _hooks.KeyDown += OnKey;
         _hooks.SwitchChord += Close;      // Alt+Tab and friends: close immediately, Windows handles the chord
         _hooks.ClickedOutside += Close;
         _hooks.ForegroundChanged += Close;
     }
 
+    private PopupWindow Main => _levels[0];
+
     public bool IsOpen => _hooks.Installed;
+
+    /// <summary>The deepest visible window: keyboard navigation acts there.</summary>
+    private int ActiveLevel
+    {
+        get
+        {
+            for (var i = Levels - 1; i > 0; i--)
+                if (_levels[i].IsVisible) return i;
+            return 0;
+        }
+    }
 
     public void Toggle()
     {
@@ -65,10 +83,10 @@ internal sealed class LinkPopup
     {
         InputSender.MaskHeldModifiers();   // first thing: the hotkey's Alt/Win must not read as a lone tap to the app underneath
         GetCursorPos(out var pt);
-        _main.SetRows(MainRows(), -1);
-        _main.SelectFirst();
-        _main.ShowAt(pt);
-        _hooks.Install(p => _main.Contains(p) || _sub.Contains(p));
+        Main.SetRows(MainRows(), -1);
+        Main.SelectFirst();
+        Main.ShowAt(pt);
+        _hooks.Install(p => _levels.Any(w => w.Contains(p)));
         Trace.Log($"popup open at {pt.X},{pt.Y}; foreground {Trace.Foreground()}");
     }
 
@@ -76,26 +94,40 @@ internal sealed class LinkPopup
     {
         if (!IsOpen) return;
         _hooks.Uninstall();
-        CloseSub();
-        _main.Hide();
+        CloseFrom(1);
+        Main.Hide();
     }
 
-    private void OpenSub(Group group, bool selectFirst)
+    /// <summary>Shows the Group's items in the window after <paramref name="level"/>, beside that level's selected row.</summary>
+    private void OpenSub(int level, Group group, bool selectFirst)
     {
-        if (_openGroup != group || !_sub.IsVisible)
+        var child = level + 1;
+        if (child >= Levels) return;
+        var window = _levels[child];
+        if (_openGroups[child] != group || !window.IsVisible)
         {
-            var row = _main.SelectedRow;
-            _sub.SetRows(group.Links.Select(ItemRow).ToList(), -1);
-            _sub.ShowBeside(_main.ScreenRect(), row is null ? _main.ScreenRect().Top : _main.RowScreenTop(row));
-            _openGroup = group;
+            CloseFrom(child);
+            var parent = _levels[level];
+            var row = parent.SelectedRow;
+            window.SetRows(VisibleItems(group).Select(ItemRow).ToList(), -1);
+            window.ShowBeside(parent.ScreenRect(), row is null ? parent.ScreenRect().Top : parent.RowScreenTop(row));
+            _openGroups[child] = group;
         }
-        if (selectFirst) _sub.SelectFirst();
+        else
+        {
+            CloseFrom(child + 1);
+        }
+        if (selectFirst) window.SelectFirst();
     }
 
-    private void CloseSub()
+    /// <summary>Hides the submenu windows from <paramref name="level"/> down.</summary>
+    private void CloseFrom(int level)
     {
-        _sub.Hide();
-        _openGroup = null;
+        for (var i = Levels - 1; i >= Math.Max(1, level); i--)
+        {
+            _levels[i].Hide();
+            _openGroups[i] = null;
+        }
     }
 
     // ---- rows ----
@@ -112,8 +144,14 @@ internal sealed class LinkPopup
             if (group.ShowInline)
             {
                 if (!group.HideName) rows.Add(Header(group));
-                _groupStarts.Add((group, rows.Count + group.Links.FindIndex(l => !l.IsDivider)));   // skip leading Dividers
-                rows.AddRange(group.Links.Select(ItemRow));
+                var start = -1;
+                foreach (var item in VisibleItems(group))
+                {
+                    var row = ItemRow(item);
+                    if (start < 0 && row.Selectable) start = rows.Count;   // skip leading Dividers
+                    rows.Add(row);
+                }
+                _groupStarts.Add((group, start));
             }
             else
             {
@@ -162,7 +200,11 @@ internal sealed class LinkPopup
         grid.Children.Add(text);
     }
 
-    private Row ItemRow(Link item) => item.IsDivider ? Separator() : LinkRow(item);
+    /// <summary>A Group's entries, minus Subgroups without Links.</summary>
+    private static IEnumerable<Link> VisibleItems(Group group) => group.Links.Where(l => l.Subgroup is not { HasLinks: false });
+
+    private Row ItemRow(Link item) =>
+        item.IsDivider ? Separator() : item.Subgroup is { } sub ? GroupRow(sub) : LinkRow(item);
 
     private Row LinkRow(Link link)
     {
@@ -230,18 +272,18 @@ internal sealed class LinkPopup
     private void OnKey(int vk)
     {
         if (!IsOpen) return;
-        var inSub = _sub.IsVisible;
-        var active = inSub ? _sub : _main;
+        var level = ActiveLevel;
+        var active = _levels[level];
         switch (vk)
         {
             case 0x1B:                                                    // Esc
-                if (inSub) CloseSub(); else Close();
+                if (level > 0) CloseFrom(level); else Close();
                 return;
             case 0x25:                                                    // Left
-                if (inSub) CloseSub();
+                if (level > 0) CloseFrom(level);
                 return;
             case 0x27:                                                    // Right
-                if (!inSub && _main.SelectedRow?.Tag is Group g) OpenSub(g, selectFirst: true);
+                if (active.SelectedRow?.Tag is Group g) OpenSub(level, g, selectFirst: true);
                 return;
             case 0x26 when ShiftHeld(): JumpGroup(forward: false); return; // Shift+Up
             case 0x26: active.MoveSelection(-1); return;                  // Up
@@ -252,7 +294,7 @@ internal sealed class LinkPopup
             case 0x24: active.SelectFirst(); return;                      // Home
             case 0x23: active.SelectLast(); return;                       // End
             case 0x0D: case 0x20:                                         // Enter, Space
-                if (active.SelectedRow is { } row) Activate(row);
+                if (active.SelectedRow is { } row) Activate(level, row);
                 return;
         }
 
@@ -263,6 +305,11 @@ internal sealed class LinkPopup
         if (_groupStarts.FirstOrDefault(s => s.Group.PopupKey == vk) is { Group: not null } start)
         {
             SelectGroup(start.Group, start.Row);
+        }
+        else if (_groupStarts.SelectMany(s => s.Group.Subgroups.Select(sub => (Parent: s.Group, Sub: sub)))
+                     .FirstOrDefault(p => p.Sub.PopupKey == vk && p.Sub.HasLinks) is { Sub: not null } hit)
+        {
+            SelectSubgroup(hit.Parent, hit.Sub);
         }
         else if (_settings().AllLinks.FirstOrDefault(l => l.PopupKey == vk) is { } link)
         {
@@ -275,9 +322,26 @@ internal sealed class LinkPopup
     /// <summary>Selects the Group's first row: an Inline Group's first Link, or a Collapsed Group's name with its submenu opened.</summary>
     private void SelectGroup(Group group, int row)
     {
-        if (_openGroup != group) CloseSub();
-        _main.Select(row);
-        if (!group.ShowInline) OpenSub(group, selectFirst: true);
+        if (_openGroups[1] != group) CloseFrom(1);
+        Main.Select(row);
+        if (!group.ShowInline) OpenSub(0, group, selectFirst: true);
+    }
+
+    /// <summary>Selects the Subgroup's row, opening its parent's submenu when needed, and opens the Subgroup's submenu.</summary>
+    private void SelectSubgroup(Group parent, Group subgroup)
+    {
+        var level = 0;
+        if (parent.ShowInline)
+        {
+            if (_openGroups[1] != subgroup) CloseFrom(1);
+        }
+        else
+        {
+            SelectGroup(parent, _groupStarts.First(s => s.Group == parent).Row);
+            level = 1;
+        }
+        _levels[level].Select(_levels[level].IndexOfTag(subgroup));
+        OpenSub(level, subgroup, selectFirst: true);
     }
 
     private static bool ShiftHeld() => (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
@@ -289,13 +353,13 @@ internal sealed class LinkPopup
     private void JumpGroup(bool forward)
     {
         if (_groupStarts.Count == 0) return;
-        CloseSub();
-        var current = _main.SelectedIndex;
+        CloseFrom(1);
+        var current = Main.SelectedIndex;
         var starts = _groupStarts.Select(s => s.Row).ToList();
         var target = forward
             ? starts.FirstOrDefault(i => i > current, starts[0])
             : starts.LastOrDefault(i => i < current, starts[^1]);
-        _main.Select(target);
+        Main.Select(target);
     }
 
     /// <summary>Ctrl, Alt or Win held: Popup Keys are bare keys (Shift is ignored).</summary>
@@ -305,7 +369,7 @@ internal sealed class LinkPopup
         return Down(VK_CONTROL) || Down(VK_MENU) || Down(VK_LWIN) || Down(VK_RWIN);
     }
 
-    private void Activate(Row row)
+    private void Activate(int level, Row row)
     {
         switch (row.Tag)
         {
@@ -314,7 +378,7 @@ internal sealed class LinkPopup
                 _onLinkChosen(link);
                 break;
             case Group group:
-                OpenSub(group, selectFirst: true);
+                OpenSub(level, group, selectFirst: true);
                 break;
         }
     }

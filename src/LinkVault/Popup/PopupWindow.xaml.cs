@@ -51,6 +51,9 @@ public partial class PopupWindow : Window
 
     internal int SelectedIndex => List.SelectedIndex;
 
+    /// <summary>Index of the row whose Tag is <paramref name="tag"/>, or -1.</summary>
+    internal int IndexOfTag(object tag) => _rows.FindIndex(r => ReferenceEquals(r.Tag, tag));
+
     internal Row? SelectedRow => List.SelectedIndex >= 0 && List.SelectedIndex < _rows.Count ? _rows[List.SelectedIndex] : null;
 
     /// <summary>Replaces the rows. A negative index leaves nothing selected.</summary>

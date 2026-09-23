@@ -9,10 +9,16 @@ namespace LinkVault.Config;
 /// <summary>Edits a copy of the settings; OK validates and applies it, Cancel drops it.</summary>
 public partial class SettingsWindow : Window
 {
+    /// <summary>An entry of the link editor's Group list; Subgroups are indented under their parent.</summary>
+    private sealed record GroupChoice(Group Group, string Display);
+
     private readonly CoreSettings _draft;
     private readonly Func<CoreSettings, IReadOnlyList<string>> _apply;
     private readonly Action<IEnumerable<Link>> _refreshIcons;
+    /// <summary>The Group or Subgroup selected in the tree; its entries are listed in the Links pane.</summary>
     private Group? _group;
+    /// <summary>The parent of <see cref="_group"/> when it is a Subgroup, else null.</summary>
+    private Group? _parent;
     private Link? _link;
     private bool _loading;
 
@@ -27,29 +33,64 @@ public partial class SettingsWindow : Window
 
         PopupHotkeyBox.Value = _draft.PopupHotkey;
         StartupBox.IsChecked = _draft.StartWithWindows;
-        GroupList.ItemsSource = _draft.Groups;
-        LinkGroupBox.ItemsSource = _draft.Groups;
         LinkHotkeyBox.ValueChanged += () => { if (_link is not null) _link.Hotkey = LinkHotkeyBox.Value; };
         LinkPopupKeyBox.ValueChanged += () => { if (_link is not null) _link.PopupKey = LinkPopupKeyBox.Value; };
         GroupPopupKeyBox.ValueChanged += () => { if (_group is not null) _group.PopupKey = GroupPopupKeyBox.Value; };
-        if (_draft.Groups.Count > 0) GroupList.SelectedIndex = 0;
+        RefreshGroups(_draft.Groups.FirstOrDefault());
     }
+
+    private Group? ParentOf(Group group) => _draft.Groups.FirstOrDefault(p => p.Subgroups.Contains(group));
 
     // ---- groups ----
 
-    private void GroupList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Rebuilds the tree (Groups with their Subgroups, all expanded) and the link editor's Group list, then selects <paramref name="select"/>.</summary>
+    private void RefreshGroups(Group? select)
     {
-        _group = GroupList.SelectedItem as Group;
+        GroupTree.Items.Clear();
+        var choices = new List<GroupChoice>();
+        TreeViewItem? selected = null;
+        foreach (var g in _draft.Groups)
+        {
+            var item = new TreeViewItem { Header = g.Name, Tag = g, IsExpanded = true };
+            choices.Add(new GroupChoice(g, g.Name));
+            if (g == select) selected = item;
+            foreach (var sub in g.Subgroups)
+            {
+                var child = new TreeViewItem { Header = sub.Name, Tag = sub };
+                choices.Add(new GroupChoice(sub, "      " + sub.Name));
+                if (sub == select) selected = child;
+                item.Items.Add(child);
+            }
+            GroupTree.Items.Add(item);
+        }
+        LinkGroupBox.ItemsSource = choices;
+        if (selected is not null) selected.IsSelected = true;
+        ShowGroup(select);
+    }
+
+    private void GroupTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (GroupTree.SelectedItem is TreeViewItem { Tag: Group g } && g != _group) ShowGroup(g);
+    }
+
+    private void ShowGroup(Group? group)
+    {
+        _group = group;
+        _parent = group is null ? null : ParentOf(group);
         _loading = true;
         GroupEditor.IsEnabled = _group is not null;
         LinksBox.IsEnabled = _group is not null;
+        LinksBox.Header = _parent is null ? "Links" : "Links of subgroup";
+        // Subgroups always show as a submenu, so the display options belong to top-level Groups only.
+        TopLevelOptions.Visibility = _parent is null ? Visibility.Visible : Visibility.Collapsed;
         GroupNameBox.Text = _group?.Name ?? "";
         ShowInlineBox.IsChecked = _group?.ShowInline ?? false;
         HideNameBox.IsChecked = _group?.HideName ?? false;
         GroupPopupKeyBox.Value = _group?.PopupKey;
         LinkList.ItemsSource = _group?.Links;
         _loading = false;
-        if (_group?.Links.Count > 0) LinkList.SelectedIndex = 0;
+        LinkList.SelectedIndex = _group?.Links.Count > 0 ? 0 : -1;
+        if (_group is null || _group.Links.Count == 0) ShowLink(null);
     }
 
     private void AddGroup_Click(object sender, RoutedEventArgs e)
@@ -61,42 +102,74 @@ public partial class SettingsWindow : Window
         GroupNameBox.SelectAll();
     }
 
+    /// <summary>Adds a Subgroup at the end of the selected top-level Group (or of the selected Subgroup's parent).</summary>
+    private void AddSubgroup_Click(object sender, RoutedEventArgs e)
+    {
+        var parent = _parent ?? _group;
+        if (parent is null) return;
+        var sub = new Group { Name = $"Subgroup {parent.Subgroups.Count() + 1}" };
+        parent.Links.Add(Link.ForSubgroup(sub));
+        RefreshGroups(sub);
+        GroupNameBox.Focus();
+        GroupNameBox.SelectAll();
+    }
+
     private void RemoveGroup_Click(object sender, RoutedEventArgs e)
     {
-        if (_group is null) return;
-        var linkCount = _group.Links.Count(l => !l.IsDivider);
-        if (linkCount > 0 &&
-            MessageBox.Show(this, $"Remove group \"{_group.Name}\" and its {linkCount} link(s)?", "LinkVault",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (_group is null || !ConfirmRemove(_group)) return;
+        if (_parent is { } parent)
+        {
+            parent.Links.RemoveAll(l => l.Subgroup == _group);
+            RefreshGroups(parent);
             return;
+        }
         var index = _draft.Groups.IndexOf(_group);
         _draft.Groups.RemoveAt(index);
         RefreshGroups(_draft.Groups.Count == 0 ? null : _draft.Groups[Math.Min(index, _draft.Groups.Count - 1)]);
+    }
+
+    private bool ConfirmRemove(Group group)
+    {
+        var linkCount = group.AllLinks.Count();
+        return linkCount == 0 ||
+               MessageBox.Show(this, $"Remove \"{group.Name}\" and its {linkCount} link(s)?", "LinkVault",
+                   MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
     }
 
     private void GroupUp_Click(object sender, RoutedEventArgs e) => MoveGroup(-1);
 
     private void GroupDown_Click(object sender, RoutedEventArgs e) => MoveGroup(+1);
 
+    /// <summary>Moves a Group among the Groups, or a Subgroup past its neighbouring Subgroup in the parent's entries.</summary>
     private void MoveGroup(int delta)
     {
-        if (_group is null || !Move(_draft.Groups, _group, delta)) return;
+        if (_group is null) return;
+        if (_parent is { } parent)
+        {
+            var entries = parent.Links;
+            var i = entries.FindIndex(l => l.Subgroup == _group);
+            var j = i + delta;
+            while (j >= 0 && j < entries.Count && !entries[j].IsSubgroup) j += delta;
+            if (j < 0 || j >= entries.Count) return;
+            (entries[i], entries[j]) = (entries[j], entries[i]);
+        }
+        else if (!Move(_draft.Groups, _group, delta))
+        {
+            return;
+        }
         RefreshGroups(_group);
-    }
-
-    private void RefreshGroups(Group? select)
-    {
-        GroupList.Items.Refresh();
-        LinkGroupBox.Items.Refresh();
-        GroupList.SelectedItem = select;
     }
 
     private void GroupName_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_loading || _group is null) return;
         _group.Name = GroupNameBox.Text;
-        GroupList.Items.Refresh();
-        LinkGroupBox.Items.Refresh();
+        if (GroupTree.SelectedItem is TreeViewItem item) item.Header = _group.Name;
+        _loading = true;
+        LinkGroupBox.ItemsSource = ((IEnumerable<GroupChoice>)LinkGroupBox.ItemsSource)
+            .Select(c => c.Group == _group ? c with { Display = (_parent is null ? "" : "      ") + _group.Name } : c).ToList();
+        LinkGroupBox.SelectedItem = _link is { IsLink: true } ? ChoiceFor(_group) : null;
+        _loading = false;
     }
 
     private void ShowInline_Click(object sender, RoutedEventArgs e)
@@ -113,16 +186,30 @@ public partial class SettingsWindow : Window
 
     private void LinkList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        _link = LinkList.SelectedItem as Link;
+        if (!_loading) ShowLink(LinkList.SelectedItem as Link);
+    }
+
+    private void ShowLink(Link? link)
+    {
+        _link = link;
         _loading = true;
-        LinkEditor.IsEnabled = _link is { IsDivider: false };
+        LinkEditor.IsEnabled = _link is { IsLink: true };
         LinkNameBox.Text = _link?.Name ?? "";
         LinkUrlBox.Text = _link?.Url ?? "";
         LinkHotkeyBox.Value = _link?.Hotkey;
         LinkPopupKeyBox.Value = _link?.PopupKey;
-        LinkGroupBox.SelectedItem = _link is null ? null : _group;
+        LinkGroupBox.SelectedItem = _link is { IsLink: true } && _group is not null ? ChoiceFor(_group) : null;
         _loading = false;
         ShowUrlInfo();
+    }
+
+    private GroupChoice? ChoiceFor(Group group) =>
+        ((IEnumerable<GroupChoice>?)LinkGroupBox.ItemsSource)?.FirstOrDefault(c => c.Group == group);
+
+    /// <summary>Double-clicking a Subgroup entry selects that Subgroup in the tree.</summary>
+    private void LinkList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_link?.Subgroup is { } sub) RefreshGroups(sub);
     }
 
     private void AddLink_Click(object sender, RoutedEventArgs e)
@@ -147,8 +234,11 @@ public partial class SettingsWindow : Window
     private void RemoveLink_Click(object sender, RoutedEventArgs e)
     {
         if (_group is null || _link is null) return;
+        if (_link.Subgroup is { } sub && !ConfirmRemove(sub)) return;
         var index = _group.Links.IndexOf(_link);
+        var wasSubgroup = _link.IsSubgroup;
         _group.Links.RemoveAt(index);
+        if (wasSubgroup) RefreshGroups(_group);
         RefreshLinks(_group.Links.Count == 0 ? null : _group.Links[Math.Min(index, _group.Links.Count - 1)]);
     }
 
@@ -159,13 +249,16 @@ public partial class SettingsWindow : Window
     private void MoveLink(int delta)
     {
         if (_group is null || _link is null || !Move(_group.Links, _link, delta)) return;
-        RefreshLinks(_link);
+        var link = _link;
+        if (link.IsSubgroup) RefreshGroups(_group);   // the tree lists Subgroups in entry order
+        RefreshLinks(link);
     }
 
     private void RefreshLinks(Link? select)
     {
         LinkList.Items.Refresh();
         LinkList.SelectedItem = select;
+        if (select is null) ShowLink(null);
     }
 
     private void LinkName_TextChanged(object sender, TextChangedEventArgs e)
@@ -186,7 +279,7 @@ public partial class SettingsWindow : Window
     /// <summary>Lists the Parameters found in the URL, or the reason it cannot be parsed.</summary>
     private void ShowUrlInfo()
     {
-        if (_link is null or { IsDivider: true }) { UrlInfo.Text = ""; return; }
+        if (_link is not { IsLink: true }) { UrlInfo.Text = ""; return; }
         var template = UrlTemplate.TryParse(_link.Url, out var error);
         if (template is null)
         {
@@ -200,14 +293,14 @@ public partial class SettingsWindow : Window
             : "Parameters: " + string.Join(", ", template.Parameters.Select(p => p.Default is null ? p.Name : $"{p.Name} = \"{p.Default}\""));
     }
 
-    /// <summary>Moving a link to another group appends it there and follows it.</summary>
+    /// <summary>Moving a link to another Group or Subgroup appends it there and follows it.</summary>
     private void LinkGroup_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_loading || _link is null || _group is null || LinkGroupBox.SelectedItem is not Group target || target == _group) return;
+        if (_loading || _link is not { IsLink: true } || _group is null || LinkGroupBox.SelectedItem is not GroupChoice { Group: var target } || target == _group) return;
         var link = _link;
         _group.Links.Remove(link);
         target.Links.Add(link);
-        GroupList.SelectedItem = target;
+        RefreshGroups(target);
         RefreshLinks(link);
     }
 

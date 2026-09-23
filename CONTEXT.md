@@ -6,9 +6,10 @@ LinkVault is a Windows tray tool that keeps a user's links in groups and opens t
 
 | Term | Meaning |
 |---|---|
-| **Link** | A stored target that can be opened: a web address, a `mailto:` or other URI, or a local file or folder path. Has a URL, an optional Name and an optional Link Hotkey. Belongs to exactly one Group. |
+| **Link** | A stored target that can be opened: a web address, a `mailto:` or other URI, or a local file or folder path. Has a URL, an optional Name and an optional Link Hotkey. Belongs to exactly one Group or Subgroup. |
 | **Name** | Optional text shown for a Link instead of its URL. A Link without a Name is shown by its URL. |
-| **Group** | A named, ordered list of Links. Groups are one level deep: a Group never contains another Group. Groups themselves are ordered. |
+| **Group** | A named, ordered list of Links, Dividers and Subgroups, in any mix. Groups themselves are ordered. |
+| **Subgroup** | A named, ordered list of Links and Dividers placed among a Group's entries. Always shown in the Popup as a submenu row ("Name ▸"). Subgroups are one level deep: a Subgroup never contains another Subgroup. A Subgroup without Links is not shown. |
 | **Divider** | A line placed between Links of a Group, in the Group's order, shown in the Popup wherever the Group's Links are listed. Not a Link: it has no URL, hotkey or key and cannot be chosen. A Group with only Dividers counts as empty. |
 | **Inline Group** | A Group whose Links are listed in the Popup itself, under a header with the Group's name, or without that header when the Group's name is hidden. |
 | **Collapsed Group** | A Group shown in the Popup only by its name with an arrow; the name opens a submenu listing its Links. |

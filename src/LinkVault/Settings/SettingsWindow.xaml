@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:LinkVault.Config"
         Title="LinkVault Settings"
-        Width="1010" Height="600" MinWidth="810" MinHeight="420"
+        Width="1050" Height="600" MinWidth="850" MinHeight="420"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="True">
     <Window.Resources>
@@ -30,7 +30,7 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="290"/>
                 <ColumnDefinition Width="310"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -43,9 +43,11 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ListBox x:Name="GroupList" Grid.Row="0" DisplayMemberPath="Name" SelectionChanged="GroupList_SelectionChanged"/>
+                    <TreeView x:Name="GroupTree" Grid.Row="0" SelectedItemChanged="GroupTree_SelectedItemChanged"/>
                     <WrapPanel Grid.Row="1" Margin="0,6,0,0">
                         <Button Content="Add" Style="{StaticResource SmallButton}" Click="AddGroup_Click"/>
+                        <Button Content="Subgroup" Style="{StaticResource SmallButton}" Click="AddSubgroup_Click"
+                                ToolTip="Add a subgroup to the selected group. It shows in the popup as a submenu among the group's links."/>
                         <Button Content="Remove" Style="{StaticResource SmallButton}" Click="RemoveGroup_Click"/>
                         <Button Content="▲" ToolTip="Move up" Style="{StaticResource SmallButton}" MinWidth="28" Click="GroupUp_Click"/>
                         <Button Content="▼" ToolTip="Move down" Style="{StaticResource SmallButton}" MinWidth="28" Click="GroupDown_Click"/>
@@ -53,6 +55,7 @@
                     <StackPanel Grid.Row="2" x:Name="GroupEditor" IsEnabled="False" Margin="0,10,0,0">
                         <TextBlock Text="Name:" Margin="0,0,0,2"/>
                         <TextBox x:Name="GroupNameBox" TextChanged="GroupName_TextChanged"/>
+                        <StackPanel x:Name="TopLevelOptions">
                         <CheckBox x:Name="ShowInlineBox" Margin="0,8,0,0" Click="ShowInline_Click"
                                   Content="Show links in the popup"
                                   ToolTip="Checked: every link of the group is listed in the popup. Unchecked: the popup shows only the group name, which opens a submenu with its links."/>
@@ -60,6 +63,7 @@
                                   IsEnabled="{Binding IsChecked, ElementName=ShowInlineBox}"
                                   Content="Hide group name"
                                   ToolTip="List the links in the popup without the group name above them."/>
+                        </StackPanel>
                         <TextBlock Text="Popup key:" Margin="0,8,0,2"/>
                         <local:PopupKeyBox x:Name="GroupPopupKeyBox"
                                            ToolTip="A single key that selects this group while the popup is open: its first link, or its submenu when the links are hidden."/>
@@ -74,7 +78,8 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ListBox x:Name="LinkList" Grid.Row="0" DisplayMemberPath="Label" SelectionChanged="LinkList_SelectionChanged"/>
+                    <ListBox x:Name="LinkList" Grid.Row="0" DisplayMemberPath="Label" SelectionChanged="LinkList_SelectionChanged"
+                             MouseDoubleClick="LinkList_MouseDoubleClick"/>
                     <WrapPanel Grid.Row="1" Margin="0,6,0,0">
                         <Button Content="Add" Style="{StaticResource SmallButton}" Click="AddLink_Click"/>
                         <Button Content="Divider" Style="{StaticResource SmallButton}" Click="AddDivider_Click"
@@ -121,7 +126,7 @@
                                        ToolTip="A single key (e.g. Y) that opens this link while the popup is open."/>
 
                     <TextBlock Grid.Row="5" Grid.Column="0" Text="Group:" VerticalAlignment="Center" Margin="0,0,8,6"/>
-                    <ComboBox Grid.Row="5" Grid.Column="1" x:Name="LinkGroupBox" Margin="0,0,0,6" DisplayMemberPath="Name"
+                    <ComboBox Grid.Row="5" Grid.Column="1" x:Name="LinkGroupBox" Margin="0,0,0,6" DisplayMemberPath="Display"
                               SelectionChanged="LinkGroup_SelectionChanged"/>
 
                     <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0">

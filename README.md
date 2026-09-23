@@ -6,6 +6,7 @@ Link launcher for Windows 10 and 11. Runs in the tray, keeps your links in group
 
 - The popup opens at the mouse cursor with a global hotkey (default `Ctrl+Alt+L`) or a left click on the tray icon.
 - Groups either list their links in the popup under a header, or show only the group name, which opens a submenu. A group that lists its links can hide its name ("Hide group name").
+- Subgroups: a group can hold subgroups among its links (one level deep). A subgroup always shows in the popup as a `Name ▸` submenu; inside a collapsed group that is a submenu of a submenu. Add one with `Subgroup` in Settings, where groups and subgroups form a tree; double-click a subgroup entry in the links list to open it. Subgroups can have a popup key too.
 - Dividers split the links of a group into sections: select a link in Settings and click `Divider` to insert a line after it, then move it with the arrows.
 - Each link can have a name (shown instead of the URL) and its own global hotkey that opens it directly.
 - Each link can also have a popup key: a single key (e.g. `Y`) that opens it while the popup is open, shown on the right of its row. Groups can have a popup key too: it selects the group's first link, or opens its submenu when its links are hidden.

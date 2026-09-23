@@ -14,15 +14,32 @@ public sealed class Link
     /// <summary>A Divider: a line between Links of a Group, not a Link. Its other properties are unused.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsDivider { get; set; }
+    /// <summary>
+    /// Set when this entry is a Subgroup placed among the Group's Links, not a Link. Its other properties are unused.
+    /// Only top-level Groups hold Subgroups.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Group? Subgroup { get; set; }
 
     [JsonIgnore]
-    public string Label => IsDivider ? "────────────" : string.IsNullOrWhiteSpace(Name) ? Url : Name;
+    public bool IsSubgroup => Subgroup is not null;
+
+    /// <summary>A real Link: neither a Divider nor a Subgroup entry.</summary>
+    [JsonIgnore]
+    public bool IsLink => !IsDivider && !IsSubgroup;
+
+    [JsonIgnore]
+    public string Label =>
+        IsDivider ? "────────────" : Subgroup is { } sub ? sub.Name + "  ▸" : string.IsNullOrWhiteSpace(Name) ? Url : Name;
 
     public static Link Divider() => new() { IsDivider = true };
+
+    public static Link ForSubgroup(Group subgroup) => new() { Subgroup = subgroup };
 
     public Link Clone() => new()
     {
         IsDivider = IsDivider,
+        Subgroup = Subgroup?.Clone(),
         Name = Name,
         Url = Url,
         Hotkey = Hotkey is null ? null : new Hotkey(Hotkey.Modifiers, Hotkey.VirtualKey),
@@ -46,9 +63,16 @@ public sealed class Group
     /// <summary>Virtual-key code of a single key that moves to this Group while the Popup is open. Shares the Popup Key space with Links.</summary>
     public int? PopupKey { get; set; }
 
-    /// <summary>True when the Group has at least one real Link (Dividers do not count).</summary>
+    /// <summary>True when the Group has at least one real Link, directly or in a Subgroup (Dividers do not count).</summary>
     [JsonIgnore]
-    public bool HasLinks => Links.Any(l => !l.IsDivider);
+    public bool HasLinks => AllLinks.Any();
+
+    /// <summary>Real Links of this Group and of its Subgroups, in order.</summary>
+    [JsonIgnore]
+    public IEnumerable<Link> AllLinks => Links.SelectMany(l => l.Subgroup?.AllLinks ?? (l.IsLink ? new[] { l } : Enumerable.Empty<Link>()));
+
+    [JsonIgnore]
+    public IEnumerable<Group> Subgroups => Links.Where(l => l.IsSubgroup).Select(l => l.Subgroup!);
 
     public Group Clone() => new()
     {
@@ -71,7 +95,7 @@ public sealed class Settings
     public static Hotkey DefaultPopupHotkey() => new(HotkeyModifiers.Control | HotkeyModifiers.Alt, VkL);
 
     [JsonIgnore]
-    public IEnumerable<Link> AllLinks => Groups.SelectMany(g => g.Links).Where(l => !l.IsDivider);
+    public IEnumerable<Link> AllLinks => Groups.SelectMany(g => g.AllLinks);
 
     public Settings Clone() => new()
     {
@@ -96,13 +120,20 @@ public sealed class Settings
             return seenKeys.Add(vk) ? null : $"Popup key {KeyNames.Name(vk)} is assigned more than once.";
         }
 
-        foreach (var g in Groups)
+        string? CheckGroup(Group g, bool isSubgroup)
         {
             if (string.IsNullOrWhiteSpace(g.Name))
-                return "Every group needs a name.";
+                return isSubgroup ? "Every subgroup needs a name." : "Every group needs a name.";
             if (CheckPopupKey(g.PopupKey, $"Group \"{g.Name}\"") is { } groupProblem)
                 return groupProblem;
-            foreach (var l in g.Links.Where(l => !l.IsDivider))
+            foreach (var sub in g.Subgroups)
+            {
+                if (isSubgroup)
+                    return $"Subgroup \"{g.Name}\" contains subgroup \"{sub.Name}\"; subgroups cannot be nested further.";
+                if (CheckGroup(sub, isSubgroup: true) is { } subProblem)
+                    return subProblem;
+            }
+            foreach (var l in g.Links.Where(l => l.IsLink))
             {
                 if (string.IsNullOrWhiteSpace(l.Url))
                     return $"Link \"{l.Label}\" in group \"{g.Name}\" has no URL.";
@@ -113,6 +144,13 @@ public sealed class Settings
                 if (CheckPopupKey(l.PopupKey, $"Link \"{l.Label}\"") is { } linkProblem)
                     return linkProblem;
             }
+            return null;
+        }
+
+        foreach (var g in Groups)
+        {
+            if (CheckGroup(g, isSubgroup: false) is { } problem)
+                return problem;
         }
         return null;
     }

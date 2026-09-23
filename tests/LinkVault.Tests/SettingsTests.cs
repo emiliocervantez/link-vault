@@ -100,6 +100,48 @@ public class SettingsTests
     }
 
     [Fact]
+    public void Subgroups_mix_with_links_and_count_everywhere()
+    {
+        var docs = new Group { Name = "Docs", PopupKey = 0x44, Links = { new Link { Url = "https://d", PopupKey = 0x57 }, Link.Divider() } };
+        var s = WithLinks(new Link { Url = "https://a" }, Link.ForSubgroup(docs), new Link { Url = "https://b" });
+        Assert.Null(s.Validate());
+        Assert.Equal(new[] { "https://a", "https://d", "https://b" }, s.AllLinks.Select(l => l.Url));
+        Assert.Equal("Docs  ▸", s.Groups[0].Links[1].Label);
+        Assert.False(s.Groups[0].Links[1].IsLink);
+        Assert.Single(s.Groups[0].Subgroups);
+
+        // Only Subgroups with Links make the parent non-empty.
+        Assert.False(new Group { Name = "p", Links = { Link.ForSubgroup(new Group { Name = "e" }) } }.HasLinks);
+        Assert.True(new Group { Name = "p", Links = { Link.ForSubgroup(docs) } }.HasLinks);
+
+        // Keys and names are checked inside Subgroups too.
+        docs.PopupKey = 0x57;
+        Assert.Contains("Popup key W is assigned more than once", s.Validate());
+        docs.PopupKey = null;
+        docs.Name = " ";
+        Assert.Contains("subgroup needs a name", s.Validate());
+        docs.Name = "Docs";
+        docs.Links.Add(new Link { Name = "bad" });
+        Assert.Contains("has no URL", s.Validate());
+        docs.Links.RemoveAt(docs.Links.Count - 1);
+
+        // One level only.
+        docs.Links.Add(Link.ForSubgroup(new Group { Name = "deep", Links = { new Link { Url = "https://x" } } }));
+        Assert.Contains("cannot be nested further", s.Validate());
+        docs.Links.RemoveAt(docs.Links.Count - 1);
+
+        var json = JsonSerializer.Serialize(s);
+        Assert.Equal(1, json.Split("\"Subgroup\"").Length - 1);   // written only for the Subgroup entry
+        var back = JsonSerializer.Deserialize<Settings>(json)!;
+        Assert.Equal("Docs", back.Groups[0].Links[1].Subgroup!.Name);
+        Assert.Equal("https://d", back.Groups[0].Links[1].Subgroup!.Links[0].Url);
+
+        var clone = s.Clone();
+        clone.Groups[0].Links[1].Subgroup!.Name = "changed";
+        Assert.Equal("Docs", docs.Name);
+    }
+
+    [Fact]
     public void Links_without_hotkey_or_name_are_fine()
     {
         Assert.Null(WithLinks(new Link { Url = "https://a" }, new Link { Url = "mailto:x@y.z" }).Validate());
