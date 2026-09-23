@@ -24,6 +24,13 @@ internal sealed class PopupInputHooks : IDisposable
     private IntPtr _mouseHook;
     private IntPtr _foregroundHook;
     private Func<POINT, bool>? _isInside;
+    private long _lastInsideClickMs = long.MinValue / 2;
+
+    /// <summary>
+    /// A foreground change this soon after a click inside the popup is a side effect of that click (for example the
+    /// taskbar, foreground after a tray-icon click, giving up the foreground), not the user switching away.
+    /// </summary>
+    private const int ClickForegroundGraceMs = 500;
 
     public PopupInputHooks(Dispatcher dispatcher)
     {
@@ -80,7 +87,11 @@ internal sealed class PopupInputHooks : IDisposable
         var msg = wParam.ToInt32();
         if (IsSwitchChord(vk))
         {
-            if (msg is WM_KEYDOWN or WM_SYSKEYDOWN) _dispatcher.BeginInvoke(() => SwitchChord?.Invoke());
+            if (msg is WM_KEYDOWN or WM_SYSKEYDOWN)
+            {
+                Trace.Log($"popup: switch chord {vk:X2}");
+                _dispatcher.BeginInvoke(() => SwitchChord?.Invoke());
+            }
             return CallNextHookEx(_keyboardHook, nCode, wParam, lParam);
         }
         if (msg is WM_KEYDOWN or WM_SYSKEYDOWN)
@@ -96,14 +107,27 @@ internal sealed class PopupInputHooks : IDisposable
         if (nCode >= 0 && wParam.ToInt32() is WM_LBUTTONDOWN or WM_RBUTTONDOWN or WM_MBUTTONDOWN && _isInside is not null)
         {
             var pt = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam).pt;
-            if (!_isInside(pt))
+            if (_isInside(pt))
+            {
+                _lastInsideClickMs = Environment.TickCount64;
+            }
+            else
+            {
+                Trace.Log($"popup: click outside at {pt.X},{pt.Y}");
                 _dispatcher.BeginInvoke(() => ClickedOutside?.Invoke());
+            }
         }
         return CallNextHookEx(_mouseHook, nCode, wParam, lParam);
     }
 
     private void ForegroundCallback(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
+        if (Environment.TickCount64 - _lastInsideClickMs < ClickForegroundGraceMs)
+        {
+            Trace.Log($"popup: foreground changed to {Trace.Window(hwnd)} right after a click inside; ignored");
+            return;
+        }
+        Trace.Log($"popup: foreground changed to {Trace.Window(hwnd)}");
         _dispatcher.BeginInvoke(() => ForegroundChanged?.Invoke());
     }
 
