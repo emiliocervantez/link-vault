@@ -73,6 +73,18 @@ internal sealed class LinkPopup
         }
     }
 
+    /// <summary>
+    /// Rebuilds and lays out the rows on the hidden main window so the code and data behind the popup stay
+    /// resident while LinkVault idles. Windows trims untouched pages of background processes, and paging
+    /// them back in is what made the first open after a pause slow.
+    /// </summary>
+    public void KeepWarm()
+    {
+        if (IsOpen) return;
+        Main.SetRows(MainRows(), -1);
+        Main.UpdateLayout();
+    }
+
     public void Toggle()
     {
         if (IsOpen) Close();

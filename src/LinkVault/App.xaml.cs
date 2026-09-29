@@ -12,6 +12,7 @@ public partial class App : Application
 {
     private const string MutexName = @"Local\LinkVault.SingleInstance";
     private const string ShowSettingsEventName = @"Local\LinkVault.ShowSettings";
+    private static readonly TimeSpan KeepWarmInterval = TimeSpan.FromMinutes(1);
 
     private Mutex? _mutex;
     private MessageWindow? _messages;
@@ -55,6 +56,11 @@ public partial class App : Application
         var failures = RegisterHotkeys(_settings, _settings);
         if (failures.Count > 0) _tray.Notify("LinkVault hotkeys", string.Join("\n", failures));
         _icons.Fetch(_settings.AllLinks, force: false);
+
+        Responsiveness.OptOutOfPowerThrottling();
+        var keepWarm = new System.Windows.Threading.DispatcherTimer { Interval = KeepWarmInterval };
+        keepWarm.Tick += (_, _) => _popup.KeepWarm();
+        keepWarm.Start();
     }
 
     private void ShowSettings()
