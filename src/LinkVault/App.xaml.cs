@@ -18,6 +18,7 @@ public partial class App : Application
     private MessageWindow? _messages;
     private VaultStorage? _storage;
     private CoreSettings _settings = new();
+    private ParameterHistory _history = new();
     private HotkeyManager? _hotkeys;
     private FaviconCache? _icons;
     private LinkPopup? _popup;
@@ -43,6 +44,7 @@ public partial class App : Application
             Trace.Enable(System.IO.Path.Combine(_storage.RootDir, "trace.log"), Dispatcher);
 
         _settings = _storage.LoadSettings();
+        _history = _storage.LoadHistory();
         _messages = new MessageWindow();
         _hotkeys = new HotkeyManager(_messages);
         _icons = new FaviconCache(_storage.IconsDir);
@@ -80,6 +82,8 @@ public partial class App : Application
         var failures = RegisterHotkeys(next, _settings);
         _settings = next;
         _storage!.SaveSettings(next);
+        _history.Trim(next.AllLinks.Select(l => l.Url), next.ParameterHistorySize);
+        _storage.SaveHistory(_history);
         StartupRegistry.Set(next.StartWithWindows);
         _icons!.Fetch(next.AllLinks, force: false);
         return failures;
@@ -116,7 +120,7 @@ public partial class App : Application
 
     private void OpenLink(Link link)
     {
-        if (LinkOpener.Open(link) is { } problem) _tray?.Notify("LinkVault", problem);
+        if (LinkOpener.Open(link, _history, _settings.ParameterHistorySize, _storage!) is { } problem) _tray?.Notify("LinkVault", problem);
     }
 
     protected override void OnExit(ExitEventArgs e)

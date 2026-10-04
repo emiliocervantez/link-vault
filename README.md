@@ -10,7 +10,7 @@ Link launcher for Windows 10 and 11. Runs in the tray, keeps your links in group
 - Dividers split the links of a group into sections: select a link in Settings and click `Divider` to insert a line after it, then move it with the arrows.
 - Each link can have a name (shown instead of the URL) and its own global hotkey that opens it directly.
 - Each link can also have a popup key: a single key (e.g. `Y`) that opens it while the popup is open, shown on the right of its row. Groups can have a popup key too: it selects the group's first link, or opens its submenu when its links are hidden.
-- Parameters: `https://www.google.com/search?q={query}` or `{query=default}` asks for the value before opening. Values are URL-encoded. Use `{{` / `}}` for literal braces.
+- Parameters: `https://www.google.com/search?q={query}` or `{query=default}` asks for the value before opening. Values are URL-encoded. Use `{{` / `}}` for literal braces. The last entered values (1 to 10, set in Settings) are remembered per parameter: press the Down arrow in the field to list them.
 - Website icons (favicons) are fetched in the background and cached in `%LOCALAPPDATA%\LinkVault\icons`. Files and folders show their Windows icon.
 - Keyboard in the popup: arrows, `Shift+Down`/`Shift+Up` or `PageDown`/`PageUp` jump to the next/previous group, `Right`/`Enter` open a submenu, `Left`/`Esc` close it, `Enter` opens a link.
 - The popup never takes focus, so the app you are working in keeps it.

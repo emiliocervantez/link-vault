@@ -31,8 +31,10 @@ public partial class SettingsWindow : Window
         _apply = apply;
         _refreshIcons = refreshIcons;
 
+        HistorySizeBox.ItemsSource = Enumerable.Range(CoreSettings.MinParameterHistorySize, CoreSettings.MaxParameterHistorySize - CoreSettings.MinParameterHistorySize + 1).ToList();
         PopupHotkeyBox.Value = _draft.PopupHotkey;
         StartupBox.IsChecked = _draft.StartWithWindows;
+        HistorySizeBox.SelectedItem = _draft.ParameterHistorySize;
         LinkHotkeyBox.ValueChanged += () => { if (_link is not null) _link.Hotkey = LinkHotkeyBox.Value; };
         LinkPopupKeyBox.ValueChanged += () => { if (_link is not null) _link.PopupKey = LinkPopupKeyBox.Value; };
         GroupPopupKeyBox.ValueChanged += () => { if (_group is not null) _group.PopupKey = GroupPopupKeyBox.Value; };
@@ -324,6 +326,7 @@ public partial class SettingsWindow : Window
         if (dialog.ShowDialog(this) != true) return;
         _draft.PopupHotkey = PopupHotkeyBox.Value ?? new Hotkey();
         _draft.StartWithWindows = StartupBox.IsChecked == true;
+        _draft.ParameterHistorySize = (int)HistorySizeBox.SelectedItem;
         try
         {
             VaultStorage.Export(_draft, dialog.FileName);
@@ -350,6 +353,7 @@ public partial class SettingsWindow : Window
         }
         PopupHotkeyBox.Value = _draft.PopupHotkey;
         StartupBox.IsChecked = _draft.StartWithWindows;
+        HistorySizeBox.SelectedItem = _draft.ParameterHistorySize;
         RefreshGroups(_draft.Groups.FirstOrDefault());
     }
 
@@ -370,6 +374,7 @@ public partial class SettingsWindow : Window
     {
         _draft.PopupHotkey = PopupHotkeyBox.Value ?? new Hotkey();
         _draft.StartWithWindows = StartupBox.IsChecked == true;
+        _draft.ParameterHistorySize = (int)HistorySizeBox.SelectedItem;
 
         if (_draft.Validate() is { } problem)
         {

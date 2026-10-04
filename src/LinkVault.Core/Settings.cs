@@ -87,9 +87,19 @@ public sealed class Group
 public sealed class Settings
 {
     private const int VkL = 0x4C;
+    public const int MinParameterHistorySize = 1;
+    public const int MaxParameterHistorySize = 10;
+
+    private int _parameterHistorySize = 5;
 
     public bool StartWithWindows { get; set; }
     public Hotkey PopupHotkey { get; set; } = DefaultPopupHotkey();
+    /// <summary>How many entered values the Input Window remembers per Parameter. Always 1-10.</summary>
+    public int ParameterHistorySize
+    {
+        get => _parameterHistorySize;
+        set => _parameterHistorySize = Math.Clamp(value, MinParameterHistorySize, MaxParameterHistorySize);
+    }
     public List<Group> Groups { get; set; } = new();
 
     public static Hotkey DefaultPopupHotkey() => new(HotkeyModifiers.Control | HotkeyModifiers.Alt, VkL);
@@ -101,6 +111,7 @@ public sealed class Settings
     {
         StartWithWindows = StartWithWindows,
         PopupHotkey = new Hotkey(PopupHotkey.Modifiers, PopupHotkey.VirtualKey),
+        ParameterHistorySize = ParameterHistorySize,
         Groups = Groups.Select(g => g.Clone()).ToList(),
     };
 

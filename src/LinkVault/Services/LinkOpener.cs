@@ -9,9 +9,9 @@ internal static class LinkOpener
 {
     /// <summary>
     /// Opens the Link with its default handler (the default browser for web links). Asks for Parameter values
-    /// first when the Link has any. Returns a problem to report, or null on success or cancel.
+    /// first when the Link has any, and remembers the entered ones. Returns a problem to report, or null on success or cancel.
     /// </summary>
-    public static string? Open(Link link)
+    public static string? Open(Link link, ParameterHistory history, int historySize, VaultStorage storage)
     {
         var template = UrlTemplate.TryParse(link.Url, out var error);
         if (template is null) return $"\"{link.Label}\": {error}";
@@ -19,9 +19,11 @@ internal static class LinkOpener
         IReadOnlyDictionary<string, string>? values = null;
         if (template.Parameters.Count > 0)
         {
-            var window = new ParamWindow(link.Label, template.Parameters);
+            var window = new ParamWindow(link.Label, template.Parameters, p => history.Get(link.Url, p.Name));
             if (window.ShowDialog() != true) return null;
             values = window.Values;
+            history.Remember(link.Url, values, historySize);
+            storage.SaveHistory(history);
         }
 
         var target = template.Expand(values);

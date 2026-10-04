@@ -4,19 +4,21 @@ namespace LinkVault.Core;
 
 /// <summary>
 /// On-disk layout under the root directory:
-/// settings.json, settings.corrupt.json (only after a failed load), icons\{site}.png
+/// settings.json, settings.corrupt.json (only after a failed load), history.json, icons\{site}.png
 /// </summary>
 public sealed class VaultStorage
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     private readonly string _settingsFile;
+    private readonly string _historyFile;
 
     public VaultStorage(string rootDir)
     {
         RootDir = rootDir;
         IconsDir = Path.Combine(rootDir, "icons");
         _settingsFile = Path.Combine(rootDir, "settings.json");
+        _historyFile = Path.Combine(rootDir, "history.json");
         Directory.CreateDirectory(IconsDir);
     }
 
@@ -49,6 +51,27 @@ public sealed class VaultStorage
         var tmp = _settingsFile + ".tmp";
         File.WriteAllText(tmp, JsonSerializer.Serialize(settings, Json));
         File.Move(tmp, _settingsFile, overwrite: true);
+    }
+
+    /// <summary>An unreadable history.json is dropped: remembered values are a convenience, not data to recover.</summary>
+    public ParameterHistory LoadHistory()
+    {
+        if (!File.Exists(_historyFile)) return new ParameterHistory();
+        try
+        {
+            return JsonSerializer.Deserialize<ParameterHistory>(File.ReadAllText(_historyFile), Json) ?? new ParameterHistory();
+        }
+        catch (JsonException)
+        {
+            return new ParameterHistory();
+        }
+    }
+
+    public void SaveHistory(ParameterHistory history)
+    {
+        var tmp = _historyFile + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(history, Json));
+        File.Move(tmp, _historyFile, overwrite: true);
     }
 
     /// <summary>Writes the settings to a file of the user's choosing, in the settings.json format.</summary>
