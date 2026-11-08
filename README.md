@@ -38,6 +38,10 @@ The URL field takes anything Windows can open. It is handed to the shell as is, 
 - Write `{{` and `}}` for literal braces, because `{` starts a Parameter.
 - Icons: web pages show the site's favicon, and files and folders show their Windows icon. Everything else, including any link whose host or path contains a Parameter, shows the generic link icon.
 
+## Download
+
+Ready-made `LinkVault.exe` builds are attached to [GitHub Releases](https://github.com/emiliocervantez/link-vault/releases).
+
 ## Build
 
 Requires the .NET 8 SDK or newer.
