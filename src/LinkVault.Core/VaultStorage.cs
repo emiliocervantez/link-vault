@@ -32,7 +32,7 @@ public sealed class VaultStorage
 
     public Settings LoadSettings()
     {
-        if (!File.Exists(_settingsFile)) return new Settings();
+        if (!File.Exists(_settingsFile)) return Settings.FirstRun();
         try
         {
             return JsonSerializer.Deserialize<Settings>(File.ReadAllText(_settingsFile), Json) ?? new Settings();

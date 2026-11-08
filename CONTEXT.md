@@ -20,6 +20,6 @@ LinkVault is a Windows tray tool that keeps a user's links in groups and opens t
 | **Url Template** | A Link's URL when it contains Parameters. |
 | **Parameter** | A placeholder in a Url Template, written `{name}` or `{name=default}`. The same name used twice is one Parameter. `{{` and `}}` are literal braces. |
 | **Default** | The value a Parameter's field starts with in the Input Window. |
-| **Input Window** | The window that asks for the value of every Parameter before a Link with Parameters is Opened. Enter opens, Esc cancels. Entered values are URL-encoded. The Down arrow in a field lists that Parameter's History. |
+| **Input Window** | The window that asks for the value of every Parameter before a Link with Parameters is Opened. Enter opens, Esc cancels. Entered values are URL-encoded. The Down arrow in a field puts the next older value of that Parameter's History into it, Up the next newer one. |
 | **Parameter History** | The values last entered for a Parameter of a Link, most recent first; 1 to 10 of them, as set in Settings. Kept per Link URL and Parameter name, so changing a Link's URL starts its History anew. Stored apart from the settings and not exported. |
 | **Open** | Handing the Link, with its Parameters filled in, to Windows, which starts the default handler (the default browser for web links). |

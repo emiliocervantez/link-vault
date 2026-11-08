@@ -26,7 +26,7 @@
             <CheckBox x:Name="StartupBox" Content="Start with Windows" VerticalAlignment="Center" Margin="0,0,24,0"/>
             <TextBlock Text="Remember parameter values:" VerticalAlignment="Center"/>
             <ComboBox x:Name="HistorySizeBox" Width="48" Margin="8,0,24,0" VerticalContentAlignment="Center"
-                      ToolTip="How many entered values are remembered for each parameter. Down arrow lists them when a link asks for its parameters."/>
+                      ToolTip="How many entered values are remembered for each parameter. Down/Up arrows step through them when a link asks for its parameters."/>
             <Button Content="Refresh icons" Style="{StaticResource SmallButton}" Click="RefreshIcons_Click"
                     ToolTip="Download the favicon of every website again"/>
             <Button Content="Export..." Style="{StaticResource SmallButton}" Click="Export_Click"

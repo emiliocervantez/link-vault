@@ -80,7 +80,7 @@ public class ParameterHistoryTests
     [Fact]
     public void History_size_setting_is_1_to_10()
     {
-        Assert.Equal(5, new Settings().ParameterHistorySize);
+        Assert.Equal(10, new Settings().ParameterHistorySize);
         Assert.Equal(1, new Settings { ParameterHistorySize = 0 }.ParameterHistorySize);
         Assert.Equal(10, new Settings { ParameterHistorySize = 99 }.ParameterHistorySize);
         Assert.Equal(10, JsonSerializer.Deserialize<Settings>("{\"ParameterHistorySize\":50}")!.ParameterHistorySize);

@@ -86,11 +86,11 @@ public sealed class Group
 
 public sealed class Settings
 {
-    private const int VkL = 0x4C;
+    private const int VkBacktick = 0xC0;
     public const int MinParameterHistorySize = 1;
     public const int MaxParameterHistorySize = 10;
 
-    private int _parameterHistorySize = 5;
+    private int _parameterHistorySize = 10;
 
     public bool StartWithWindows { get; set; }
     public Hotkey PopupHotkey { get; set; } = DefaultPopupHotkey();
@@ -102,7 +102,25 @@ public sealed class Settings
     }
     public List<Group> Groups { get; set; } = new();
 
-    public static Hotkey DefaultPopupHotkey() => new(HotkeyModifiers.Control | HotkeyModifiers.Alt, VkL);
+    public static Hotkey DefaultPopupHotkey() => new(HotkeyModifiers.Alt, VkBacktick);
+
+    /// <summary>What a fresh install starts with, before any settings.json exists.</summary>
+    public static Settings FirstRun() => new()
+    {
+        Groups =
+        {
+            new Group
+            {
+                Name = "Search",
+                Links = { new Link { Name = "Google", Url = "https://www.google.com/search?q={query}", Hotkey = new Hotkey(HotkeyModifiers.Win, 0x53) } },
+            },
+            new Group
+            {
+                Name = "Neotech",
+                Links = { new Link { Name = "Jira", Url = "https://jira.leoncorp.net/{id}", Hotkey = new Hotkey(HotkeyModifiers.Win, 0x4A) } },
+            },
+        },
+    };
 
     [JsonIgnore]
     public IEnumerable<Link> AllLinks => Groups.SelectMany(g => g.AllLinks);

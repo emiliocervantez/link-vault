@@ -25,14 +25,21 @@ public partial class ParamWindow : Window
             Fields.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             // "__": a single '_' in a Label is an access key marker.
             var label = new Label { Content = p.Name.Replace("_", "__") + ":", Padding = new Thickness(0), Margin = new Thickness(0, 0, 8, 6), VerticalAlignment = VerticalAlignment.Center };
+            var values = remembered(p);
             // Editable, so it is a text field whose list holds the remembered values. No text search: typing must not autocomplete.
-            var box = new ComboBox { IsEditable = true, IsTextSearchEnabled = false, ItemsSource = remembered(p), Text = p.Default ?? "", Margin = new Thickness(0, 0, 0, 6), VerticalContentAlignment = VerticalAlignment.Center };
-            // By default Down steps through the values without showing them; show the list instead.
+            var box = new ComboBox { IsEditable = true, IsTextSearchEnabled = false, ItemsSource = values, Text = p.Default ?? "", Margin = new Thickness(0, 0, 0, 6), VerticalContentAlignment = VerticalAlignment.Center };
+            // Like a command line: Down puts the next older value into the field, Up the next newer one, then what was typed.
+            var index = -1;
+            var typed = "";
             box.PreviewKeyDown += (_, e) =>
             {
-                if (e.Key != Key.Down || box.IsDropDownOpen || !box.HasItems) return;
-                box.IsDropDownOpen = true;
+                if (e.Key is not (Key.Down or Key.Up) || box.IsDropDownOpen) return;
                 e.Handled = true;
+                var next = e.Key == Key.Down ? Math.Min(index + 1, values.Count - 1) : Math.Max(index - 1, -1);
+                if (next == index) return;
+                if (index == -1) typed = box.Text;
+                index = next;
+                box.Text = index == -1 ? typed : values[index];
             };
             label.Target = box;
             Grid.SetRow(label, row);

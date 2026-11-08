@@ -4,13 +4,13 @@ Link launcher for Windows 10 and 11. Runs in the tray, keeps your links in group
 
 ## Features
 
-- The popup opens at the mouse cursor with a global hotkey (default `Ctrl+Alt+L`) or a left click on the tray icon.
+- The popup opens at the mouse cursor with a global hotkey (default ``Alt+` ``) or a left click on the tray icon.
 - Groups either list their links in the popup under a header, or show only the group name, which opens a submenu. A group that lists its links can hide its name ("Hide group name").
 - Subgroups: a group can hold subgroups among its links (one level deep). A subgroup always shows in the popup as a `Name ▸` submenu; inside a collapsed group that is a submenu of a submenu. Add one with `Subgroup` in Settings, where groups and subgroups form a tree; double-click a subgroup entry in the links list to open it. Subgroups can have a popup key too.
 - Dividers split the links of a group into sections: select a link in Settings and click `Divider` to insert a line after it, then move it with the arrows.
 - Each link can have a name (shown instead of the URL) and its own global hotkey that opens it directly.
 - Each link can also have a popup key: a single key (e.g. `Y`) that opens it while the popup is open, shown on the right of its row. Groups can have a popup key too: it selects the group's first link, or opens its submenu when its links are hidden.
-- Parameters: `https://www.google.com/search?q={query}` or `{query=default}` asks for the value before opening. Values are URL-encoded. Use `{{` / `}}` for literal braces. The last entered values (1 to 10, set in Settings) are remembered per parameter: press the Down arrow in the field to list them.
+- Parameters: `https://www.google.com/search?q={query}` or `{query=default}` asks for the value before opening. Values are URL-encoded. Use `{{` / `}}` for literal braces. The last entered values (1 to 10, set in Settings) are remembered per parameter: press the Down arrow in the field to put the previous one in, again for older ones, Up to go back.
 - Website icons (favicons) are fetched in the background and cached in `%LOCALAPPDATA%\LinkVault\icons`. Files and folders show their Windows icon.
 - Keyboard in the popup: arrows, `Shift+Down`/`Shift+Up` or `PageDown`/`PageUp` jump to the next/previous group, `Right`/`Enter` open a submenu, `Left`/`Esc` close it, `Enter` opens a link.
 - The popup never takes focus, so the app you are working in keeps it.
@@ -55,6 +55,9 @@ Requires the .NET 8 SDK or newer.
 .\publish.cmd --bundle=false     # small exe, needs the .NET 8 Desktop Runtime
 .\publish.cmd -Output C:\tools   # C:\tools\LinkVault.exe
 .\publish.cmd -StopRunning       # stop a LinkVault started from the output folder first
+
+Example:
+.\publish.cmd -StopRunning --bundle=false
 ```
 
 ## Diagnostics

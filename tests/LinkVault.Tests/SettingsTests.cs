@@ -17,7 +17,7 @@ public class SettingsTests
     public void Defaults()
     {
         var s = new Settings();
-        Assert.Equal("Ctrl+Alt+L", s.PopupHotkey.ToString());
+        Assert.Equal("Alt+`", s.PopupHotkey.ToString());
         Assert.False(s.StartWithWindows);
         Assert.Empty(s.Groups);
         Assert.True(new Group().ShowInline);
@@ -180,7 +180,7 @@ public class SettingsTests
         Assert.Equal("g", s.Groups[0].Name);
         Assert.Equal("t", s.Groups[0].Links[0].Name);
         Assert.Equal(0x41, s.Groups[0].Links[0].Hotkey!.VirtualKey);
-        Assert.Equal(0x4C, s.PopupHotkey.VirtualKey);
+        Assert.Equal(0xC0, s.PopupHotkey.VirtualKey);
     }
 
     [Fact]
@@ -190,7 +190,11 @@ public class SettingsTests
         try
         {
             var storage = new VaultStorage(dir);
-            Assert.Empty(storage.LoadSettings().Groups);
+            var first = storage.LoadSettings();
+            Assert.Equal(new[] { "https://www.google.com/search?q={query}", "https://jira.leoncorp.net/{id}" }, first.AllLinks.Select(l => l.Url));
+            Assert.Equal(new[] { "Win+S", "Win+J" }, first.AllLinks.Select(l => l.Hotkey!.ToString()));
+            Assert.Equal(new[] { "Search", "Neotech" }, first.Groups.Select(g => g.Name));
+            Assert.Null(first.Validate());
             storage.SaveSettings(WithLinks(new Link { Url = "https://a" }));
             Assert.Equal("https://a", new VaultStorage(dir).LoadSettings().Groups[0].Links[0].Url);
             Assert.False(File.Exists(storage.CorruptBackupFile));
