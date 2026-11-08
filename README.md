@@ -64,6 +64,16 @@ Example:
 .\publish.cmd -StopRunning --bundle=false
 ```
 
+## Release
+
+Needs the [GitHub CLI](https://cli.github.com/), logged in (`gh auth login`). Commit and push first: the release is tagged on `master`.
+
+```
+.\scripts\release.cmd v1.1.0                 # tests, small exe, tag + GitHub Release with the exe
+.\scripts\release.cmd v1.1.0 -Bundle true    # same with the .NET bundled exe
+.\scripts\release.cmd v1.0.0 -Replace        # rebuild and replace the exe of an existing release
+```
+
 ## Diagnostics
 
 Start with `--trace` to write `trace.log` next to the settings.
